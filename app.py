@@ -10,7 +10,7 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
+from openpyxl.worksheet.views import Selection
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -23,32 +23,17 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-[data-testid="stFileUploader"] small {
-    display: none !important;
-}
+.block-container {padding-top: 0rem !important;}
 
-.block-container {
-    padding-top: 0rem !important;
-}
-
-html, body {
-    background-color: #f1f5f9;
-}
+html, body {background-color: #f1f5f9;}
 
 .header {
     text-align: center;
     padding: 8px 0;
 }
 
-.header h1 {
-    color: #0284c7;
-    margin: 0;
-}
-
-.header p {
-    color: #64748b;
-    margin: 0;
-}
+.header h1 {color: #0284c7; margin: 0;}
+.header p {color: #64748b; margin: 0;}
 
 .card {
     background: white;
@@ -72,33 +57,25 @@ html, body {
     color: white;
 }
 
-section[data-testid="stFileUploader"] {
-    border: 2px dashed #cbd5f5;
-    padding: 12px;
-    border-radius: 10px;
-    background: #f8fafc;
+/* FOOTER */
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background: white;
+    color: #64748b;
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    border-top: 1px solid #e2e8f0;
+    z-index: 9999;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# STATE
-# =========================
-if "uploader_key" not in st.session_state:
-    st.session_state["uploader_key"] = 0
-
-# =========================
-# HEADER
-# =========================
-st.markdown("""
-<div class="header">
-    <h1>⚡ TPN TOOL</h1>
-    <p>Xử lý & đối soát Shipment nhanh chóng</p>
-</div>
-""", unsafe_allow_html=True)
-
-# =========================
-# FIX EXCEL CORRUPT
+# FIX EXCEL
 # =========================
 def fix_excel_styles(path):
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -127,31 +104,16 @@ def fix_excel_styles(path):
                     f.write(content)
 
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
     os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
 
     return fixed_path
 
-# =========================
-# SAFE LOAD
-# =========================
-def safe_load(path, read_only=False):
+def safe_load(path):
     try:
-        return load_workbook(
-            path,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
-    except Exception:
-        fixed = fix_excel_styles(path)
-        return load_workbook(
-            fixed,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(path)
+    except:
+        return load_workbook(fix_excel_styles(path))
 
 # =========================
 # FIND COLUMN
@@ -165,7 +127,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO COLUMN WIDTH
+# AUTO WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -181,177 +143,150 @@ def auto_adjust_column_width(ws):
 # =========================
 # UI
 # =========================
-with st.container():
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown("""
+<div class="header">
+    <h1>⚡ TPN TOOL</h1>
+    <p>Xử lý & đối soát Shipment nhanh chóng</p>
+</div>
+""", unsafe_allow_html=True)
 
-    uploaded_files = st.file_uploader(
-        "📂 Chọn 2 file Excel cần xử lý",
-        type=["xlsx"],
-        accept_multiple_files=True,
-        key=f"uploader_{st.session_state['uploader_key']}"
-    )
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    st.markdown(
-        '<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>',
-        unsafe_allow_html=True
-    )
+files = st.file_uploader(
+    "📂 Upload 2 file Excel",
+    type=["xlsx"],
+    accept_multiple_files=True
+)
 
-    if st.button("🚀 RUN TOOL"):
+if st.button("🚀 RUN TOOL"):
 
-        if not uploaded_files or len(uploaded_files) != 2:
-            st.error("⚠️ Vui lòng chọn đúng 2 file!")
-            st.stop()
+    if not files or len(files) != 2:
+        st.error("Vui lòng upload đúng 2 file")
+        st.stop()
 
-        with st.spinner("⏳ Đang xử lý..."):
+    tmp_dir = tempfile.gettempdir()
 
-            tmp_dir = tempfile.gettempdir()
+    path_tpn = None
+    path_book1 = None
 
-            path_tpn = None
-            path_book1 = None
+    # save files
+    for f in files:
+        path = os.path.join(tmp_dir, f.name)
+        with open(path, "wb") as x:
+            x.write(f.read())
 
-            for file in uploaded_files:
-                path = os.path.join(tmp_dir, file.name)
+        wb = safe_load(path)
+        ws = wb.active
 
-                with open(path, "wb") as f:
-                    f.write(file.read())
+        header = [str(c.value).strip() if c.value else "" for c in ws[1]]
 
-                wb_check = safe_load(path, read_only=True)
-                ws_check = wb_check.active
+        if any("Shipment Nbr" in h for h in header):
+            path_tpn = path
+        else:
+            path_book1 = path
 
-                header = [
-                    str(c.value).replace("\xa0", " ").strip()
-                    if c.value else ""
-                    for c in ws_check[1]
-                ]
+    # =========================
+    # FILE 2 DATA
+    # =========================
+    df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
-                wb_check.close()
+    all_numbers = set()
+    for v in df.iloc[:, 0].dropna().astype(str):
+        all_numbers.update(re.findall(r"\d{4}", v))
 
-                if any("Shipment Nbr" in h for h in header):
-                    path_tpn = path
-                else:
-                    path_book1 = path
+    # =========================
+    # FILE 1
+    # =========================
+    wb = safe_load(path_tpn)
+    ws = wb.active
 
-            save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
-            kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
+    ws.sheet_view.topLeftCell = "A1"
+    ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
-            # =========================
-            # READ FILE 2
-            # =========================
-            df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
+    col_index = find_shipment_col(ws)
 
-            all_numbers = set()
-            for v in df.iloc[:, 0].dropna().astype(str):
-                all_numbers.update(re.findall(r"\d{4}", v))
+    yellow = PatternFill("solid", fgColor="FFFF00")
+    header_fill = PatternFill("solid", fgColor="000080")
+    header_font = Font(color="FFFFFF", bold=True)
 
-            # =========================
-            # PROCESS FILE 1
-            # =========================
-            wb = safe_load(path_tpn)
-            ws = wb.active
+    ketqua_numbers = set()
+    count = 0
 
-            # 🔥 OPEN FILE AT TOP
-            ws.sheet_view.topLeftCell = "A1"
-            ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
+    # header style
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
 
-            col_index = find_shipment_col(ws)
+    # bold all
+    bold_font = Font(bold=True)
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value:
+                cell.font = bold_font
 
-            if not col_index:
-                st.error("❌ Không tìm thấy cột Shipment Nbr")
-                st.stop()
+    for i in range(2, ws.max_row + 1):
+        val = ws.cell(i, col_index).value
 
-            yellow = PatternFill("solid", fgColor="FFFF00")
+        if val:
+            nums = set(re.findall(r"\d{4}", str(val)))
+            ketqua_numbers.update(nums)
 
-            ketqua_numbers = set()
-            count = 0
+            if nums & all_numbers:
+                ws.cell(i, col_index).fill = yellow
+                count += 1
 
-            header_fill = PatternFill("solid", fgColor="000080")
-            header_font = Font(color="FFFFFF", bold=True)
+    save1 = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
+    wb.save(save1)
+    wb.close()
 
-            for cell in ws[1]:
-                if cell.value:
-                    cell.fill = header_fill
-                    cell.font = header_font
+    # =========================
+    # FILE 2 (FIXED COLOR HERE)
+    # =========================
+    wb2 = safe_load(path_book1)
+    ws2 = wb2.active
 
-            bold_font = Font(bold=True)
+    ws2.sheet_view.topLeftCell = "A1"
+    ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
-            for row in ws.iter_rows():
-                for cell in row:
-                    if cell.value:
-                        cell.font = bold_font
+    red_font = Font(color="FF0000", bold=True)
 
-            for cell in ws[1]:
-                if cell.value:
-                    cell.fill = header_fill
-                    cell.font = Font(color="FFFFFF", bold=True)
+    for i in range(2, ws2.max_row + 1):
+        val = ws2.cell(i, 1).value
 
-            for i in range(2, ws.max_row + 1):
-                val = ws.cell(i, col_index).value
+        if val:
+            nums = set(re.findall(r"\d{4}", str(val)))   # ✅ FIXED BUG
+            if nums & ketqua_numbers:
+                ws2.cell(i, 1).font = red_font
 
-                if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
-                    ketqua_numbers.update(nums)
+    auto_adjust_column_width(ws2)
 
-                    if nums & all_numbers:
-                        ws.cell(i, col_index).fill = yellow
-                        count += 1
+    save2 = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
+    wb2.save(save2)
+    wb2.close()
 
-            wb.save(save_path)
-            wb.close()
+    # =========================
+    # ZIP
+    # =========================
+    zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
-            # =========================
-            # PROCESS FILE 2
-            # =========================
-            wb2 = safe_load(path_book1)
-            ws2 = wb2.active
+    with zipfile.ZipFile(zip_path, "w") as z:
+        z.write(save1, "TPN_KET_QUA.xlsx")
+        z.write(save2, "TPN_KE_HOACH_XE.xlsx")
 
-            # 🔥 OPEN FILE AT TOP
-            ws2.sheet_view.topLeftCell = "A1"
-            ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
+    with open(zip_path, "rb") as f:
+        data = f.read()
 
-            red = Font(color="FF0000")
+    st.success(f"Done! Matched: {count}")
 
-            for i in range(2, ws2.max_row + 1):
-                val = ws2.cell(i, 1).value
+    st.download_button("📥 Download ZIP", data, file_name="TPN_COMPLETE.zip")
 
-                if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
-                    if nums & ketqua_numbers:
-                        ws2.cell(i, 1).font = red
-
-            auto_adjust_column_width(ws2)
-
-            wb2.save(kehoach_path)
-            wb2.close()
-
-            # =========================
-            # ZIP
-            # =========================
-            zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
-
-            with zipfile.ZipFile(zip_path, "w") as z:
-                z.write(save_path, "TPN_KET_QUA.xlsx")
-                z.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
-
-            with open(zip_path, "rb") as f:
-                zip_data = f.read()
-
-        st.success(f"✅ COMPLETE !!! Matched: {count}")
-
-        st.download_button(
-            "📥 Download ALL (ZIP)",
-            data=zip_data,
-            file_name="TPN_COMPLETE.zip"
-        )
-
-        st.session_state["uploader_key"] += 1
-
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================
-# FOOTER (ADD HERE)
+# FOOTER
 # =========================
 st.markdown("""
 <div class="footer">
-    © 2026 TPN TOOL • Built with Streamlit • All rights reserved
+© 2026 TPN TOOL • Built with Streamlit • All rights reserved
 </div>
 """, unsafe_allow_html=True)
