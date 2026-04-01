@@ -11,15 +11,28 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
+# =========================
+# RESET FUNCTION
+# =========================
+def reset_app():
+    for key in st.session_state.keys():
+        del st.session_state[key]
+    st.rerun()
+
+
 st.title("TPN TOOL ⚡")
 st.write("Upload 2 file cùng lúc (TPN + Book1)")
 
 uploaded_files = st.file_uploader(
     "Chọn 2 file Excel",
     type=["xlsx"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key="uploader"
 )
 
+# =========================
+# RUN TOOL
+# =========================
 if st.button("🚀 RUN TOOL"):
 
     if not uploaded_files or len(uploaded_files) != 2:
@@ -33,9 +46,7 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
-        # =========================
-        # SAVE + DETECT FILE
-        # =========================
+        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -57,28 +68,20 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-        # =========================
         # READ BOOK1
-        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
-        # =========================
         # PROCESS TPN
-        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
         header = [cell.value for cell in ws[1]]
-        col_index = None
-
-        for i, v in enumerate(header):
-            if v and str(v).strip() == "Shipment Nbr":
-                col_index = i + 1
-                break
+        col_index = next((i + 1 for i, v in enumerate(header)
+                          if v and str(v).strip() == "Shipment Nbr"), None)
 
         if not col_index:
             st.error("Không tìm thấy Shipment Nbr")
@@ -100,18 +103,14 @@ if st.button("🚀 RUN TOOL"):
                     ws.cell(row=i, column=col_index).fill = yellow_fill
                     count += 1
 
-        # FIX A1
         ws.sheet_view.selection[0].activeCell = "A1"
         ws.sheet_view.selection[0].sqref = "A1"
         ws.sheet_view.topLeftCell = "A1"
-        ws.sheet_view.zoomScale = 100
 
         wb.save(save_path)
         wb.close()
 
-        # =========================
         # PROCESS KE_HOACH
-        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -125,48 +124,51 @@ if st.button("🚀 RUN TOOL"):
                 if nums & ketqua_numbers:
                     ws2.cell(row=i, column=1).font = red_font
 
-        # =========================
-        # AUTO FIT COLUMNS (QUAN TRỌNG)
-        # =========================
+        # AUTO FIT
         for col in ws2.columns:
             max_length = 0
             col_letter = get_column_letter(col[0].column)
 
             for cell in col:
-                try:
-                    if cell.value:
-                        length = len(str(cell.value))
-                        if length > max_length:
-                            max_length = length
-                except:
-                    pass
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
 
-            adjusted_width = min(max_length + 2, 50)
-            ws2.column_dimensions[col_letter].width = adjusted_width
+            ws2.column_dimensions[col_letter].width = min(max_length + 2, 50)
 
-        # FIX A1
         ws2.sheet_view.selection[0].activeCell = "A1"
         ws2.sheet_view.selection[0].sqref = "A1"
         ws2.sheet_view.topLeftCell = "A1"
-        ws2.sheet_view.zoomScale = 100
 
         wb2.save(kehoach_path)
         wb2.close()
 
-        # =========================
-        # ZIP FILE
-        # =========================
+        # ZIP
         zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
 
         with zipfile.ZipFile(zip_path, "w") as zipf:
             zipf.write(save_path, "TPN_KET_QUA.xlsx")
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
-    st.success(f"Xong! Matched: {count}")
+        # SAVE vào session
+        st.session_state["zip_path"] = zip_path
+        st.session_state["done"] = True
+        st.session_state["count"] = count
 
-    with open(zip_path, "rb") as f:
+
+# =========================
+# SHOW DOWNLOAD
+# =========================
+if st.session_state.get("done"):
+
+    st.success(f"Xong! Matched: {st.session_state['count']}")
+
+    with open(st.session_state["zip_path"], "rb") as f:
         st.download_button(
             "📥 Download ALL (ZIP)",
             f,
             file_name="TPN_RESULT.zip"
         )
+
+    # Nút reset
+    if st.button("🔄 Làm mới"):
+        reset_app()
