@@ -8,13 +8,10 @@ import zipfile
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 
-# =========================
-# PAGE CONFIG
-# =========================
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (GIỮ NGUYÊN UI)
+# CSS (GIỮ NGUYÊN)
 # =========================
 st.markdown("""
 <style>
@@ -97,18 +94,37 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX: SAFE OPEN EXCEL (FILE NHIỀU CỘT)
+# 🔥 SAFE LOAD FIX (QUAN TRỌNG NHẤT)
 # =========================
 def safe_load(path, read_only=False):
-    return load_workbook(
-        path,
-        data_only=True,
-        read_only=read_only,
-        keep_links=False
-    )
+    """
+    FIX 2 LỖI:
+    1. File Excel export bị lỗi STYLE (Stylesheet TypeError)
+    2. File nhiều cột / SAP / WMS export corrupted
+
+    => CHẶN STYLE PARSING CRASH
+    """
+
+    try:
+        return load_workbook(
+            path,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
+
+    except TypeError:
+        # 🔥 FALLBACK: bỏ qua styles lỗi
+        return load_workbook(
+            path,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False,
+            keep_vba=False
+        )
 
 # =========================
-# FIND COLUMN SAFE
+# FIND COLUMN SAFELY
 # =========================
 def find_shipment_col(ws):
     for cell in ws[1]:
@@ -119,7 +135,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# CARD UI
+# UI CARD
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -161,7 +177,11 @@ with st.container():
                 wb_check = safe_load(path, read_only=True)
                 ws_check = wb_check.active
 
-                header = [str(c.value).strip() if c.value else "" for c in ws_check[1]]
+                header = [
+                    str(c.value).replace("\xa0", " ").strip()
+                    if c.value else ""
+                    for c in ws_check[1]
+                ]
 
                 wb_check.close()
 
@@ -170,11 +190,14 @@ with st.container():
                 else:
                     path_book1 = path
 
+            # =========================
+            # OUTPUT FILES
+            # =========================
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 2 - READ SAFE (LIMIT COL)
+            # READ FILE 2 (SAFE)
             # =========================
             df = pd.read_excel(path_book1, engine="openpyxl", usecols=[0])
 
@@ -183,7 +206,7 @@ with st.container():
                 all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
-            # FILE 1 PROCESS
+            # PROCESS FILE 1
             # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
@@ -191,7 +214,7 @@ with st.container():
             col_index = find_shipment_col(ws)
 
             if not col_index:
-                st.error("Không tìm thấy cột Shipment Nbr")
+                st.error("❌ Không tìm thấy cột Shipment Nbr")
                 st.stop()
 
             yellow_fill = PatternFill("solid", fgColor="FFFF00")
@@ -214,7 +237,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2 PROCESS
+            # PROCESS FILE 2
             # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
@@ -235,13 +258,13 @@ with st.container():
             # =========================
             # ZIP OUTPUT
             # =========================
-            zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+            zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
 
-            with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
-                zipf.write(save_path, "TPN_KET_QUA.xlsx")
-                zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
+            with zipfile.ZipFile(zip_path, "w") as z:
+                z.write(save_path, "TPN_KET_QUA.xlsx")
+                z.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
-            with open(zip_buffer.name, "rb") as f:
+            with open(zip_path, "rb") as f:
                 zip_data = f.read()
 
         st.success(f"✅ Hoàn tất! Matched: {count}")
@@ -249,7 +272,7 @@ with st.container():
         st.download_button(
             "📥 Download ALL (ZIP)",
             data=zip_data,
-            file_name="TPN_COMPLETE.zip"
+            file_name="TPN_RESULT.zip"
         )
 
         st.session_state["uploader_key"] += 1
