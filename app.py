@@ -15,102 +15,98 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL (QUAN TRỌNG)
+# CSS FULL FIX
 # =========================
 st.markdown("""
 <style>
 
-/* 🔥 ẨN HEADER STREAMLIT */
+/* ===== ẨN STREAMLIT ===== */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* 🔥 FIX KHOẢNG TRẮNG TRIỆT ĐỂ */
-[data-testid="stAppViewContainer"] {
-    padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
-[data-testid="stAppViewBlockContainer"] {
-    padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
-section.main {
-    padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
-section.main > div {
-    padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
+/* ===== FIX TRÊN CÙNG ===== */
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewBlockContainer"],
+section.main,
+section.main > div,
 .block-container {
     padding-top: 0rem !important;
     margin-top: 0rem !important;
 }
 
+/* ===== FIX KHOẢNG GIỮA HEADER & UPLOAD ===== */
+div[data-testid="stVerticalBlock"] > div {
+    margin-bottom: 0rem !important;
+    padding-bottom: 0rem !important;
+}
+
+div[data-testid="stMarkdownContainer"] {
+    margin-bottom: 0rem !important;
+}
+
+div[data-testid="stFileUploader"] {
+    margin-top: 0rem !important;
+    padding-top: 0rem !important;
+}
+
+/* ===== BODY ===== */
 html, body {
     margin: 0 !important;
     padding: 0 !important;
-}
-
-/* ===== UI ===== */
-body {
     background-color: #f1f5f9;
 }
 
-/* header custom */
+/* ===== HEADER ===== */
 .header {
     text-align: center;
-    padding: 5px 0 15px 0;
+    margin: 0;
+    padding: 5px 0 8px 0;
 }
 
 .header h1 {
     color: #0284c7;
-    font-size: 28px;
+    font-size: 26px;
     margin: 0;
 }
 
 .header p {
     color: #64748b;
-    font-size: 14px;
+    font-size: 13px;
     margin: 0;
 }
 
-/* card */
+/* ===== CARD ===== */
 .card {
     background: white;
-    padding: 25px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
 
-/* button RUN */
+/* ===== BUTTON ===== */
 .stButton>button {
     width: 100%;
-    height: 45px;
+    height: 42px;
     border-radius: 10px;
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
-    font-size: 16px;
+    font-size: 15px;
 }
 
-/* button DOWNLOAD */
+/* ===== DOWNLOAD ===== */
 .stDownloadButton>button {
     width: 100%;
-    height: 45px;
+    height: 42px;
     border-radius: 10px;
     background: #16a34a;
     color: white;
-    font-size: 16px;
 }
 
-/* uploader */
+/* ===== UPLOADER ===== */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #cbd5f5;
-    padding: 15px;
+    padding: 12px;
     border-radius: 10px;
     background: #f8fafc;
 }
@@ -140,7 +136,7 @@ st.markdown("""
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
 uploaded_files = st.file_uploader(
-    "📂 Chọn 2 file Excel",
+    "📂 Chọn 2 file Excel (TPN + Book1)",
     type=["xlsx"],
     accept_multiple_files=True,
     key=f"uploader_{st.session_state['uploader_key']}"
@@ -162,7 +158,6 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
-        # SAVE + DETECT FILE
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -184,18 +179,14 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-        # =========================
         # READ BOOK1
-        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
-        # =========================
         # PROCESS TPN
-        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
@@ -230,9 +221,7 @@ if st.button("🚀 RUN TOOL"):
         wb.save(save_path)
         wb.close()
 
-        # =========================
         # PROCESS KE_HOACH
-        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -264,9 +253,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.save(kehoach_path)
         wb2.close()
 
-        # =========================
-        # ZIP FILE
-        # =========================
+        # ZIP
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
         with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
@@ -284,7 +271,6 @@ if st.button("🚀 RUN TOOL"):
         file_name="TPN_RESULT.zip"
     )
 
-    # RESET
     st.session_state["uploader_key"] += 1
 
 st.markdown('</div>', unsafe_allow_html=True)
