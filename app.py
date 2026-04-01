@@ -21,82 +21,18 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-[data-testid="stFileUploader"] small {
-    display: none !important;
-}
-
-.block-container {
-    padding-top: 0rem !important;
-}
-
-html, body {
-    background-color: #f1f5f9;
-}
-
-.header {
-    text-align: center;
-    padding: 8px 0;
-}
-
-.header h1 {
-    color: #0284c7;
-    margin: 0;
-}
-
-.header p {
-    color: #64748b;
-    margin: 0;
-}
+.block-container {padding-top: 0rem !important;}
 
 .card {
     background: white;
     padding: 20px;
     border-radius: 12px;
 }
-
-.stButton>button {
-    width: 100%;
-    height: 42px;
-    border-radius: 10px;
-    background: linear-gradient(90deg, #0ea5e9, #22c55e);
-    color: white;
-}
-
-.stDownloadButton>button {
-    width: 100%;
-    height: 42px;
-    border-radius: 10px;
-    background: #16a34a;
-    color: white;
-}
-
-section[data-testid="stFileUploader"] {
-    border: 2px dashed #cbd5f5;
-    padding: 12px;
-    border-radius: 10px;
-    background: #f8fafc;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# STATE
-# =========================
-if "uploader_key" not in st.session_state:
-    st.session_state["uploader_key"] = 0
-
-# =========================
-# HEADER
-# =========================
-st.markdown("""
-<div class="header">
-    <h1>⚡ TPN TOOL</h1>
-    <p>Xử lý & đối soát Shipment nhanh chóng</p>
-</div>
-""", unsafe_allow_html=True)
-
-# =========================
-# 🔥 FIX EXCEL CORRUPT
+# FIX FILE (REMOVE STYLE)
 # =========================
 def fix_excel_styles(path):
     import re
@@ -107,207 +43,162 @@ def fix_excel_styles(path):
     with zipfile.ZipFile(path, 'r') as zin:
         zin.extractall(tmp_dir)
 
-    # 1. remove styles.xml
+    # remove styles.xml
     style_path = os.path.join(tmp_dir, "xl", "styles.xml")
     if os.path.exists(style_path):
         os.remove(style_path)
 
-    # 2. remove style reference trong sheet
+    # remove style refs
     sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
-
     if os.path.exists(sheet_dir):
         for file in os.listdir(sheet_dir):
             if file.endswith(".xml"):
-                fpath = os.path.join(sheet_dir, file)
-
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = f.read()
-
+                p = os.path.join(sheet_dir, file)
+                content = open(p, encoding="utf-8").read()
                 content = re.sub(r'\s*s="\d+"', '', content)
+                open(p, "w", encoding="utf-8").write(content)
 
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(content)
-
-    # 3. zip lại
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
     os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
 
     return fixed_path
 
-# =========================
-# SAFE LOAD
-# =========================
-def safe_load(path, read_only=False):
+def safe_load(path):
     try:
-        return load_workbook(
-            path,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
-    except Exception:
+        return load_workbook(path, data_only=True)
+    except:
         fixed = fix_excel_styles(path)
-        return load_workbook(
-            fixed,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(fixed, data_only=True)
 
 # =========================
 # FIND COLUMN
 # =========================
-def find_shipment_col(ws):
-    for cell in ws[1]:
-        if cell.value:
-            v = str(cell.value).replace("\xa0", " ").strip()
-            if "Shipment Nbr" in v:
-                return cell.column
+def find_col(ws):
+    for c in ws[1]:
+        if c.value and "Shipment Nbr" in str(c.value):
+            return c.column
     return None
 
 # =========================
 # UI
 # =========================
-with st.container():
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+uploaded_files = st.file_uploader(
+    "📂 Upload 2 file Excel",
+    type=["xlsx"],
+    accept_multiple_files=True
+)
 
-    uploaded_files = st.file_uploader(
-        "📂 Chọn 2 file Excel cần xử lý",
-        type=["xlsx"],
-        accept_multiple_files=True,
-        key=f"uploader_{st.session_state['uploader_key']}"
+if st.button("🚀 RUN TOOL"):
+
+    if not uploaded_files or len(uploaded_files) != 2:
+        st.error("Chọn đúng 2 file")
+        st.stop()
+
+    tmp = tempfile.gettempdir()
+
+    path_tpn = None
+    path_book = None
+
+    # =========================
+    # SAVE FILES + DETECT
+    # =========================
+    for f in uploaded_files:
+        path = os.path.join(tmp, f.name)
+        open(path, "wb").write(f.read())
+
+        wb = safe_load(path)
+        ws = wb.active
+        header = [str(c.value) if c.value else "" for c in ws[1]]
+
+        if any("Shipment Nbr" in h for h in header):
+            path_tpn = path
+        else:
+            path_book = path
+
+        wb.close()
+
+    # =========================
+    # 🔥 CLONE FILE GỐC (GIỮ FORMAT)
+    # =========================
+    output_tpn = os.path.join(tmp, "TPN_KET_QUA.xlsx")
+    shutil.copy(path_tpn, output_tpn)
+
+    output_book = os.path.join(tmp, "TPN_KE_HOACH_XE.xlsx")
+    shutil.copy(path_book, output_book)
+
+    # =========================
+    # READ DATA FROM FIXED FILE
+    # =========================
+    wb_fixed = safe_load(path_tpn)
+    ws_fixed = wb_fixed.active
+
+    col = find_col(ws_fixed)
+
+    df = pd.read_excel(path_book, usecols=[0])
+
+    all_nums = set()
+    for v in df.iloc[:, 0].dropna().astype(str):
+        all_nums.update(re.findall(r"\d{4}", v))
+
+    match_rows = []
+    ketqua_numbers = set()
+
+    for i in range(2, ws_fixed.max_row + 1):
+        val = ws_fixed.cell(i, col).value
+        if val:
+            nums = set(re.findall(r"\d{4}", str(val)))
+            ketqua_numbers.update(nums)
+
+            if nums & all_nums:
+                match_rows.append(i)
+
+    wb_fixed.close()
+
+    # =========================
+    # APPLY LÊN FILE COPY (KHÔNG ĐỤNG FILE GỐC)
+    # =========================
+    wb = load_workbook(output_tpn)
+    ws = wb.active
+
+    yellow = PatternFill("solid", fgColor="FFFF00")
+
+    for i in match_rows:
+        ws.cell(i, col).fill = yellow
+
+    wb.save(output_tpn)
+    wb.close()
+
+    # =========================
+    # FILE 2
+    # =========================
+    wb2 = load_workbook(output_book)
+    ws2 = wb2.active
+
+    red = Font(color="FF0000")
+
+    for i in range(2, ws2.max_row + 1):
+        val = ws2.cell(i, 1).value
+
+        if val:
+            nums = set(re.findall(r"\d{4}", str(val)))
+            if nums & ketqua_numbers:
+                ws2.cell(i, 1).font = red
+
+    wb2.save(output_book)
+    wb2.close()
+
+    # =========================
+    # ZIP
+    # =========================
+    zip_path = os.path.join(tmp, "TPN_RESULT.zip")
+
+    with zipfile.ZipFile(zip_path, "w") as z:
+        z.write(output_tpn, "TPN_KET_QUA.xlsx")
+        z.write(output_book, "TPN_KE_HOACH_XE.xlsx")
+
+    st.download_button(
+        "📥 Download",
+        data=open(zip_path, "rb"),
+        file_name="TPN_RESULT.zip"
     )
-
-    st.markdown(
-        '<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>',
-        unsafe_allow_html=True
-    )
-
-    if st.button("🚀 RUN TOOL"):
-
-        if not uploaded_files or len(uploaded_files) != 2:
-            st.error("⚠️ Vui lòng chọn đúng 2 file!")
-            st.stop()
-
-        with st.spinner("⏳ Đang xử lý..."):
-
-            tmp_dir = tempfile.gettempdir()
-
-            path_tpn = None
-            path_book1 = None
-
-            # =========================
-            # SAVE + DETECT FILE
-            # =========================
-            for file in uploaded_files:
-                path = os.path.join(tmp_dir, file.name)
-
-                with open(path, "wb") as f:
-                    f.write(file.read())
-
-                wb_check = safe_load(path, read_only=True)
-                ws_check = wb_check.active
-
-                header = [
-                    str(c.value).replace("\xa0", " ").strip()
-                    if c.value else ""
-                    for c in ws_check[1]
-                ]
-
-                wb_check.close()
-
-                if any("Shipment Nbr" in h for h in header):
-                    path_tpn = path
-                else:
-                    path_book1 = path
-
-            # =========================
-            # OUTPUT
-            # =========================
-            save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
-            kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
-
-            # =========================
-            # READ FILE 2
-            # =========================
-            df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
-
-            all_numbers = set()
-            for v in df.iloc[:, 0].dropna().astype(str):
-                all_numbers.update(re.findall(r"\d{4}", v))
-
-            # =========================
-            # PROCESS FILE 1
-            # =========================
-            wb = safe_load(path_tpn)
-            ws = wb.active
-
-            col_index = find_shipment_col(ws)
-
-            if not col_index:
-                st.error("❌ Không tìm thấy cột Shipment Nbr")
-                st.stop()
-
-            yellow = PatternFill("solid", fgColor="FFFF00")
-
-            ketqua_numbers = set()
-            count = 0
-
-            for i in range(2, ws.max_row + 1):
-                val = ws.cell(i, col_index).value
-
-                if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
-                    ketqua_numbers.update(nums)
-
-                    if nums & all_numbers:
-                        ws.cell(i, col_index).fill = yellow
-                        count += 1
-
-            wb.save(save_path)
-            wb.close()
-
-            # =========================
-            # PROCESS FILE 2
-            # =========================
-            wb2 = safe_load(path_book1)
-            ws2 = wb2.active
-
-            red = Font(color="FF0000")
-
-            for i in range(2, ws2.max_row + 1):
-                val = ws2.cell(i, 1).value
-
-                if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
-                    if nums & ketqua_numbers:
-                        ws2.cell(i, 1).font = red
-
-            wb2.save(kehoach_path)
-            wb2.close()
-
-            # =========================
-            # ZIP
-            # =========================
-            zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
-
-            with zipfile.ZipFile(zip_path, "w") as z:
-                z.write(save_path, "TPN_KET_QUA.xlsx")
-                z.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
-
-            with open(zip_path, "rb") as f:
-                zip_data = f.read()
-
-        st.success(f"✅ Hoàn tất! Matched: {count}")
-
-        st.download_button(
-            "📥 Download ALL (ZIP)",
-            data=zip_data,
-            file_name="TPN_RESULT.zip"
-        )
-
-        st.session_state["uploader_key"] += 1
-
-    st.markdown('</div>', unsafe_allow_html=True)
