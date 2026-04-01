@@ -10,8 +10,9 @@ from openpyxl.styles import PatternFill, Font
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
+
 # =========================
-# CSS
+# UI STYLE
 # =========================
 st.markdown("""
 <style>
@@ -24,18 +25,16 @@ footer {visibility: hidden;}
     padding-top: 0rem !important;
 }
 
-html, body {
-    background-color: #f1f5f9;
-}
-
 .header {
     text-align: center;
-    padding: 8px 0;
+    padding: 10px 0;
 }
+
 .header h1 {
     color: #0284c7;
     margin: 0;
 }
+
 .header p {
     color: #64748b;
     margin: 0;
@@ -75,39 +74,31 @@ section[data-testid="stFileUploader"] {
 
 
 # =========================
-# STATE
+# HEADER
+# =========================
+st.markdown("""
+<div class="header">
+    <h1>⚡ TPN TOOL</h1>
+    <p>Xử lý & đối soát Shipment</p>
+</div>
+""", unsafe_allow_html=True)
+
+
+# =========================
+# SESSION STATE
 # =========================
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 
 # =========================
-# 🔥 FIX EXCEL (QUAN TRỌNG NHẤT)
+# SAFE READ EXCEL
 # =========================
-def repair_excel_file(path):
-    fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-
-    with zipfile.ZipFile(path, "r") as zin:
-        with zipfile.ZipFile(fixed_path, "w") as zout:
-            for item in zin.infolist():
-                if item.filename not in [
-                    "xl/styles.xml",
-                    "xl/theme/theme1.xml"
-                ]:
-                    zout.writestr(item, zin.read(item.filename))
-
-    return fixed_path
-
-
-# =========================
-# HEADER
-# =========================
-st.markdown("""
-<div class="header">
-    <h1>⚡ TPN TOOL</h1>
-    <p>Xử lý & đối soát Shipment nhanh chóng</p>
-</div>
-""", unsafe_allow_html=True)
+def safe_read_excel(path):
+    try:
+        return pd.read_excel(path, nrows=1)
+    except:
+        return pd.read_excel(path, nrows=1, engine="openpyxl")
 
 
 # =========================
@@ -117,7 +108,7 @@ with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
-        "📂 Chọn 2 file Excel cần xử lý",
+        "📂 Chọn đúng 2 file Excel",
         type=["xlsx"],
         accept_multiple_files=True,
         key=f"uploader_{st.session_state['uploader_key']}"
@@ -147,23 +138,20 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                # 🔥 FIX NGAY SAU KHI SAVE (QUAN TRỌNG)
-                safe_path = repair_excel_file(path)
-
-                # check header bằng file đã fix
-                df_check = pd.read_excel(safe_path, nrows=1)
+                # 🔥 đọc thử file để detect loại file
+                df_check = safe_read_excel(path)
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
-                    path_tpn = safe_path
+                    path_tpn = path
                 else:
-                    path_book1 = safe_path
+                    path_book1 = path
 
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1
+            # FILE 1 (BOOK1)
             # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
@@ -171,14 +159,25 @@ with st.container():
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
+            # =========================
+            # FILE 2 (TPN)
+            # =========================
             wb = load_workbook(path_tpn)
             ws = wb.active
 
             header = [cell.value for cell in ws[1]]
-            col_index = next((i + 1 for i, v in enumerate(header)
-                              if v and str(v).strip() == "Shipment Nbr"), None)
 
-            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+            col_index = next(
+                (i + 1 for i, v in enumerate(header)
+                 if v and str(v).strip() == "Shipment Nbr"),
+                None
+            )
+
+            yellow_fill = PatternFill(
+                start_color="FFFF00",
+                end_color="FFFF00",
+                fill_type="solid"
+            )
 
             ketqua_numbers = set()
             count = 0
@@ -198,7 +197,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2
+            # FILE 3 OUTPUT (KE HOACH)
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -215,21 +214,6 @@ with st.container():
 
             wb2.save(kehoach_path)
             wb2.close()
-
-            # =========================
-            # A1 FIX VIEW
-            # =========================
-            def fix_excel_view(path):
-                wb_fix = load_workbook(path)
-                ws_fix = wb_fix.active
-
-                ws_fix.sheet_view.topLeftCell = "A1"
-
-                wb_fix.save(path)
-                wb_fix.close()
-
-            fix_excel_view(save_path)
-            fix_excel_view(kehoach_path)
 
             # =========================
             # ZIP OUTPUT
