@@ -15,32 +15,32 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# MODERN UI - CSS UPGRADE
+# FIX UI WHITE SPACE + MODERN STYLE
 # =========================
 st.markdown("""
 <style>
-/* Hide default UI */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* Background */
-html, body {
-    background: linear-gradient(135deg, #e0f2fe, #f8fafc);
-}
-
-/* Center container */
+/* FIX TRIỆT ĐỂ KHOẢNG TRẮNG DƯỚI HEADER */
 .block-container {
-    padding-top: 1rem !important;
+    padding-top: 0.8rem !important;
+    padding-bottom: 0rem !important;
     max-width: 850px;
     margin: auto;
 }
 
-/* Header */
+/* BACKGROUND */
+html, body {
+    background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+}
+
+/* HEADER */
 .header {
     text-align: center;
-    padding: 18px 10px;
-    margin-bottom: 10px;
+    padding: 10px 10px 2px 10px;
+    margin-bottom: 0px !important;
 }
 
 .header h1 {
@@ -49,24 +49,27 @@ html, body {
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 5px;
+    margin: 0;
 }
 
 .header p {
     color: #64748b;
     font-size: 14px;
+    margin: 0;   /* 🔥 FIX GAP */
+    padding: 0;
 }
 
-/* Card */
+/* CARD - sát header luôn */
 .card {
     background: white;
     padding: 22px;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
     border: 1px solid #e2e8f0;
+    margin-top: 6px; /* giảm khoảng cách */
 }
 
-/* File uploader */
+/* FILE UPLOADER */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #93c5fd;
     padding: 14px;
@@ -74,7 +77,7 @@ section[data-testid="stFileUploader"] {
     background: #f8fafc;
 }
 
-/* Buttons */
+/* BUTTON */
 .stButton>button {
     width: 100%;
     height: 46px;
@@ -83,15 +86,8 @@ section[data-testid="stFileUploader"] {
     color: white;
     font-weight: 600;
     border: none;
-    transition: 0.2s;
 }
 
-.stButton>button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(14,165,233,0.3);
-}
-
-/* Download button */
 .stDownloadButton>button {
     width: 100%;
     height: 46px;
@@ -101,7 +97,7 @@ section[data-testid="stFileUploader"] {
     font-weight: 600;
 }
 
-/* Small note */
+/* NOTE TEXT */
 .small-note {
     font-size: 12px;
     color: #64748b;
@@ -109,10 +105,9 @@ section[data-testid="stFileUploader"] {
     text-align: center;
 }
 
-/* spinner text */
-div[data-testid="stSpinner"] > div {
-    color: #0ea5e9;
-    font-weight: 600;
+/* REMOVE EXTRA PARAGRAPH SPACE STREAMLIT */
+p {
+    margin-bottom: 0px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -124,7 +119,7 @@ if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 # =========================
-# HEADER UI
+# HEADER
 # =========================
 st.markdown("""
 <div class="header">
@@ -169,25 +164,17 @@ def fix_excel_styles(path):
 
     return fixed_path
 
+
 # =========================
 # SAFE LOAD
 # =========================
 def safe_load(path, read_only=False):
     try:
-        return load_workbook(
-            path,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
     except Exception:
         fixed = fix_excel_styles(path)
-        return load_workbook(
-            fixed,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
+
 
 # =========================
 # FIND COLUMN
@@ -200,8 +187,9 @@ def find_shipment_col(ws):
                 return cell.column
     return None
 
+
 # =========================
-# AUTO COLUMN WIDTH
+# AUTO WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -214,10 +202,12 @@ def auto_adjust_column_width(ws):
 
         ws.column_dimensions[col_letter].width = max_len + 3
 
+
 # =========================
-# UI CONTAINER
+# UI
 # =========================
 with st.container():
+
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
@@ -227,7 +217,7 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.markdown('<div class="small-note">📌 Chỉ upload file .xlsx (2 file)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="small-note">📌 Chỉ upload đúng 2 file .xlsx</div>', unsafe_allow_html=True)
 
     if st.button("🚀 RUN TOOL"):
 
@@ -235,7 +225,7 @@ with st.container():
             st.error("⚠️ Vui lòng chọn đúng 2 file!")
             st.stop()
 
-        with st.spinner("⏳ Đang xử lý dữ liệu..."):
+        with st.spinner("⏳ Đang xử lý..."):
 
             tmp_dir = tempfile.gettempdir()
 
@@ -267,18 +257,14 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-            # =========================
-            # FILE 2 READ
-            # =========================
+            # FILE 2
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # FILE 1 PROCESS
-            # =========================
+            # FILE 1
             wb = safe_load(path_tpn)
             ws = wb.active
 
@@ -304,18 +290,11 @@ with st.container():
                     cell.fill = header_fill
                     cell.font = header_font
 
-            bold_font = Font(bold=True)
-
-            for row in ws.iter_rows():
-                for cell in row:
-                    if cell.value:
-                        cell.font = bold_font
-
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\d\{4\}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -325,9 +304,7 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
-            # =========================
-            # FILE 2 PROCESS
-            # =========================
+            # FILE 2 OUTPUT
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
@@ -349,9 +326,7 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
-            # ZIP OUTPUT
-            # =========================
+            # ZIP
             zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
@@ -361,10 +336,10 @@ with st.container():
             with open(zip_path, "rb") as f:
                 zip_data = f.read()
 
-        st.success(f"✅ HOÀN THÀNH !!! Matched: {count}")
+        st.success(f"✅ COMPLETE !!! Matched: {count}")
 
         st.download_button(
-            "📥 DOWNLOAD FILE ZIP",
+            "📥 DOWNLOAD ZIP",
             data=zip_data,
             file_name="TPN_COMPLETE.zip"
         )
