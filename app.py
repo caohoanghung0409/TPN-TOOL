@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL
+# CSS FIX FULL + ẨN TEXT 200MB
 # =========================
 st.markdown("""
 <style>
@@ -21,6 +21,11 @@ st.markdown("""
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+
+/* 🔥 ẨN "200MB per file • XLSX" */
+div[data-testid="stFileUploader"] small {
+    display: none !important;
+}
 
 /* 🔥 FIX KHOẢNG TRẮNG TRÊN */
 [data-testid="stAppViewContainer"],
@@ -32,12 +37,11 @@ section.main > div,
     margin-top: 0rem !important;
 }
 
-/* 🔥 XÓA BLOCK RỖNG (CHÍNH LÀ Ô TRẮNG CỦA BẠN) */
+/* 🔥 XÓA BLOCK RỖNG */
 div[data-testid="stVerticalBlock"] > div:first-child:empty {
     display: none !important;
 }
 
-/* 🔥 backup: nếu nó không empty hoàn toàn */
 div[data-testid="stVerticalBlock"] > div:first-child {
     min-height: 0 !important;
     padding: 0 !important;
@@ -125,7 +129,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD (ĐẶT ĐÚNG VỊ TRÍ - KHÔNG TẠO BLOCK RỖNG)
+# CARD
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -136,6 +140,9 @@ with st.container():
         accept_multiple_files=True,
         key=f"uploader_{st.session_state['uploader_key']}"
     )
+
+    # ✅ TEXT BẠN YÊU CẦU
+    st.caption("📌 Chỉ upload file .xlsx")
 
     if st.button("🚀 RUN TOOL"):
 
