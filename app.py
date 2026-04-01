@@ -96,19 +96,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# 🔥 FIX: REMOVE styles.xml
+# 🔥 FIX EXCEL CORRUPT
 # =========================
 def fix_excel_styles(path):
+    import re
+
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
     os.makedirs(tmp_dir, exist_ok=True)
 
     with zipfile.ZipFile(path, 'r') as zin:
         zin.extractall(tmp_dir)
 
+    # 1. remove styles.xml
     style_path = os.path.join(tmp_dir, "xl", "styles.xml")
     if os.path.exists(style_path):
         os.remove(style_path)
 
+    # 2. remove style reference trong sheet
+    sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
+
+    if os.path.exists(sheet_dir):
+        for file in os.listdir(sheet_dir):
+            if file.endswith(".xml"):
+                fpath = os.path.join(sheet_dir, file)
+
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                content = re.sub(r'\s*s="\d+"', '', content)
+
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+    # 3. zip lại
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
 
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
@@ -179,7 +199,7 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAVE FILES + DETECT
+            # SAVE + DETECT FILE
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -203,6 +223,9 @@ with st.container():
                 else:
                     path_book1 = path
 
+            # =========================
+            # OUTPUT
+            # =========================
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
