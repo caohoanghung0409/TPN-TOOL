@@ -4,6 +4,7 @@ import re
 import tempfile
 import os
 import zipfile
+import xml.etree.ElementTree as ET
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
@@ -79,26 +80,48 @@ section[data-testid="stFileUploader"] {
 st.markdown("""
 <div class="header">
     <h1>⚡ TPN TOOL</h1>
-    <p>Xử lý & đối soát Shipment</p>
+    <p>Xử lý Shipment an toàn (anti-crash)</p>
 </div>
 """, unsafe_allow_html=True)
 
 
 # =========================
-# SESSION STATE
+# GET HEADER (NO OPENPYXL STYLE PARSE)
+# =========================
+def get_excel_header(path):
+    """
+    Đọc header trực tiếp từ XML -> tránh crash style openpyxl
+    """
+    try:
+        with zipfile.ZipFile(path) as z:
+            with z.open("xl/worksheets/sheet1.xml") as f:
+                tree = ET.parse(f)
+                root = tree.getroot()
+
+                ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+
+                rows = root.findall(".//a:row", ns)
+                if not rows:
+                    return []
+
+                first_row = rows[0]
+                cells = first_row.findall(".//a:c", ns)
+
+                header = []
+                for c in cells:
+                    v = c.find("a:v", ns)
+                    header.append(v.text if v is not None else "")
+
+                return header
+    except:
+        return []
+
+
+# =========================
+# SESSION
 # =========================
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
-
-
-# =========================
-# SAFE READ EXCEL
-# =========================
-def safe_read_excel(path):
-    try:
-        return pd.read_excel(path, nrows=1)
-    except:
-        return pd.read_excel(path, nrows=1, engine="openpyxl")
 
 
 # =========================
@@ -138,9 +161,9 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                # 🔥 đọc thử file để detect loại file
-                df_check = safe_read_excel(path)
-                header = [str(x).strip() for x in df_check.columns]
+                # 🔥 SAFE HEADER DETECT (NO OPENPYXL STYLE CRASH)
+                header = get_excel_header(path)
+                header = [str(x).strip() for x in header]
 
                 if "Shipment Nbr" in header:
                     path_tpn = path
@@ -151,7 +174,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1 (BOOK1)
+            # FILE 1
             # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
@@ -160,15 +183,15 @@ with st.container():
                 all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
-            # FILE 2 (TPN)
+            # FILE 2
             # =========================
             wb = load_workbook(path_tpn)
             ws = wb.active
 
-            header = [cell.value for cell in ws[1]]
+            header_row = [cell.value for cell in ws[1]]
 
             col_index = next(
-                (i + 1 for i, v in enumerate(header)
+                (i + 1 for i, v in enumerate(header_row)
                  if v and str(v).strip() == "Shipment Nbr"),
                 None
             )
@@ -197,7 +220,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 3 OUTPUT (KE HOACH)
+            # FILE 3
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
