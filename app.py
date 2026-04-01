@@ -11,27 +11,24 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL (ẨN 200MB 100%)
+# CSS FIX (CHỈ ẨN 200MB)
 # =========================
 st.markdown("""
 <style>
 
-/* ẨN HEADER STREAMLIT */
+/* ẨN HEADER */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* DIỆT SẠCH TEXT 200MB */
-[data-testid="stFileUploader"] div {
-    font-size: 0px !important;
-}
-[data-testid="stFileUploader"] span {
-    font-size: 0px !important;
+/* 🎯 CHỈ ẨN DÒNG 200MB */
+[data-testid="stFileUploader"] small {
+    display: none !important;
 }
 
-/* GIỮ LẠI LABEL CHÍNH */
-[data-testid="stFileUploader"] label {
-    font-size: 14px !important;
+/* fallback thêm nếu Streamlit đổi cấu trúc */
+[data-testid="stFileUploader"] div[data-testid="stFileUploaderDropzoneInstructions"] {
+    font-size: 14px;
 }
 
 /* FIX KHOẢNG TRẮNG */
@@ -124,7 +121,7 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    # TEXT THAY THẾ
+    # TEXT CUSTOM
     st.markdown(
         '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
         unsafe_allow_html=True
