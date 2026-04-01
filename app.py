@@ -17,7 +17,6 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 def reset_app():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    st.rerun()
 
 
 st.title("TPN TOOL ⚡")
@@ -149,16 +148,17 @@ if st.button("🚀 RUN TOOL"):
         wb2.close()
 
         # =========================
-        # ZIP FILE
+        # ZIP FILE (LƯU MEMORY)
         # =========================
-        zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
+        zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
-        with zipfile.ZipFile(zip_path, "w") as zipf:
+        with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
             zipf.write(save_path, "TPN_KET_QUA.xlsx")
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
-        # Lưu vào session
-        st.session_state["zip_data"] = open(zip_path, "rb").read()
+        with open(zip_buffer.name, "rb") as f:
+            st.session_state["zip_data"] = f.read()
+
         st.session_state["count"] = count
         st.session_state["ready"] = True
 
@@ -172,11 +172,7 @@ if st.session_state.get("ready"):
 
     st.download_button(
         "📥 Download ALL (ZIP)",
-        st.session_state["zip_data"],
-        file_name="TPN_RESULT.zip"
+        data=st.session_state["zip_data"],
+        file_name="TPN_RESULT.zip",
+        on_click=reset_app
     )
-
-    # ⏱ Auto reset sau khi hiển thị download
-    import time
-    time.sleep(2)
-    reset_app()
