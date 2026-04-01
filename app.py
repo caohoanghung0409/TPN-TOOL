@@ -11,6 +11,24 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
+# SAFE EXCEL READ (FIX ERROR OPENPYXL STYLE)
+# =========================
+def safe_read_excel(path):
+    try:
+        return pd.read_excel(path, nrows=1, engine="openpyxl")
+    except Exception:
+        # fallback bypass stylesheet lỗi
+        wb = load_workbook(path, data_only=True, read_only=True)
+        ws = wb.active
+        data = list(ws.values)
+
+        if not data:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(data[1:], columns=data[0])
+        return df.head(1)
+
+# =========================
 # CSS
 # =========================
 st.markdown("""
@@ -130,7 +148,10 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                df_check = pd.read_excel(path, nrows=1)
+                # =========================
+                # FIX ERROR HERE
+                # =========================
+                df_check = safe_read_excel(path)
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -166,7 +187,7 @@ with st.container():
                 val = ws.cell(row=i, column=col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\d" * 4, str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -203,17 +224,7 @@ with st.container():
                 ws_fix = wb_fix.active
 
                 ws_fix.sheet_view.topLeftCell = "A1"
-                ws_fix.sheet_view.selection.clear()
-                ws_fix.sheet_view.selection.append(
-                    type("Selection", (), {
-                        "activeCell": "A1",
-                        "sqref": "A1"
-                    })()
-                )
 
-                # =========================
-                # AUTO FIT COLUMNS (CHỈ FILE 2)
-                # =========================
                 if auto_fit:
                     for col in ws_fix.columns:
                         max_length = 0
@@ -229,7 +240,7 @@ with st.container():
                 wb_fix.close()
 
             fix_excel(save_path, auto_fit=False)
-            fix_excel(kehoach_path, auto_fit=True)  # 🔥 FILE 2 AUTO FIT
+            fix_excel(kehoach_path, auto_fit=True)
 
             # =========================
             # ZIP
