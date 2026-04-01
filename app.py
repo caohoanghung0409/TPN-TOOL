@@ -12,21 +12,31 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
+# INIT STATE
+# =========================
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
+
+# =========================
 # RESET FUNCTION
 # =========================
 def reset_app():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    st.session_state["uploader_key"] += 1
+    for k in ["ready", "zip_data", "count"]:
+        if k in st.session_state:
+            del st.session_state[k]
+    st.rerun()
 
 
 st.title("TPN TOOL ⚡")
 st.write("Upload 2 file cùng lúc (TPN + Book1)")
 
+# 👇 KEY ĐỘNG
 uploaded_files = st.file_uploader(
     "Chọn 2 file Excel",
     type=["xlsx"],
     accept_multiple_files=True,
-    key="uploader"
+    key=f"uploader_{st.session_state['uploader_key']}"
 )
 
 # =========================
@@ -148,7 +158,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.close()
 
         # =========================
-        # ZIP FILE (LƯU MEMORY)
+        # ZIP FILE
         # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
