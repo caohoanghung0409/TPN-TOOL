@@ -11,39 +11,13 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
-# =========================
-# INIT STATE
-# =========================
-if "uploader_key" not in st.session_state:
-    st.session_state["uploader_key"] = 0
-
-if "reset_flag" not in st.session_state:
-    st.session_state["reset_flag"] = False
-
-# =========================
-# RESET LOGIC (KHÔNG rerun trong callback)
-# =========================
-def trigger_reset():
-    st.session_state["reset_flag"] = True
-
-
-# 👉 chạy reset bên ngoài callback (an toàn)
-if st.session_state["reset_flag"]:
-    st.session_state["uploader_key"] += 1
-    for k in ["ready", "zip_data", "count", "reset_flag"]:
-        if k in st.session_state:
-            del st.session_state[k]
-    st.rerun()
-
-
 st.title("TPN TOOL ⚡")
 st.write("Upload 2 file cùng lúc (TPN + Book1)")
 
 uploaded_files = st.file_uploader(
     "Chọn 2 file Excel",
     type=["xlsx"],
-    accept_multiple_files=True,
-    key=f"uploader_{st.session_state['uploader_key']}"
+    accept_multiple_files=True
 )
 
 # =========================
@@ -62,6 +36,7 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
+        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -83,14 +58,18 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+        # =========================
         # READ BOOK1
+        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
+        # =========================
         # PROCESS TPN
+        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
@@ -125,7 +104,9 @@ if st.button("🚀 RUN TOOL"):
         wb.save(save_path)
         wb.close()
 
+        # =========================
         # PROCESS KE_HOACH
+        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -157,7 +138,9 @@ if st.button("🚀 RUN TOOL"):
         wb2.save(kehoach_path)
         wb2.close()
 
-        # ZIP
+        # =========================
+        # ZIP FILE (memory)
+        # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
         with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
@@ -165,22 +148,29 @@ if st.button("🚀 RUN TOOL"):
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
         with open(zip_buffer.name, "rb") as f:
-            st.session_state["zip_data"] = f.read()
+            zip_data = f.read()
 
-        st.session_state["count"] = count
-        st.session_state["ready"] = True
+    st.success(f"Xong! Matched: {count}")
 
-
-# =========================
-# DOWNLOAD + AUTO RESET
-# =========================
-if st.session_state.get("ready"):
-
-    st.success(f"Xong! Matched: {st.session_state['count']}")
-
+    # =========================
+    # DOWNLOAD + AUTO RELOAD
+    # =========================
     st.download_button(
         "📥 Download ALL (ZIP)",
-        data=st.session_state["zip_data"],
-        file_name="TPN_RESULT.zip",
-        on_click=trigger_reset
+        data=zip_data,
+        file_name="TPN_RESULT.zip"
     )
+
+    # 👉 JS reload sau khi click
+    st.markdown("""
+        <script>
+        const btn = window.parent.document.querySelector('button[kind="secondary"]');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            });
+        }
+        </script>
+    """, unsafe_allow_html=True)
