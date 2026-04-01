@@ -10,12 +10,12 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.views import Selection
+from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (KHÔNG FOOTER Ở ĐÂY)
+# CSS
 # =========================
 st.markdown("""
 <style>
@@ -23,9 +23,12 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
+[data-testid="stFileUploader"] small {
+    display: none !important;
+}
+
 .block-container {
     padding-top: 0rem !important;
-    padding-bottom: 70px !important;
 }
 
 html, body {
@@ -34,7 +37,7 @@ html, body {
 
 .header {
     text-align: center;
-    padding: 10px 0;
+    padding: 8px 0;
 }
 
 .header h1 {
@@ -51,7 +54,6 @@ html, body {
     background: white;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
 .stButton>button {
@@ -80,28 +82,6 @@ section[data-testid="stFileUploader"] {
 """, unsafe_allow_html=True)
 
 # =========================
-# FOOTER (ĐẶT NGOÀI CSS - FIX LỖI)
-# =========================
-st.markdown("""
-<div style="
-position: fixed;
-bottom: 0;
-left: 0;
-width: 100%;
-background: rgba(255,255,255,0.92);
-backdrop-filter: blur(8px);
-text-align: center;
-padding: 10px;
-font-size: 12px;
-color: #64748b;
-border-top: 1px solid #e2e8f0;
-z-index: 999;
-">
-© 2026 TPN TOOL • Built with Streamlit • All rights reserved
-</div>
-""", unsafe_allow_html=True)
-
-# =========================
 # STATE
 # =========================
 if "uploader_key" not in st.session_state:
@@ -118,7 +98,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX EXCEL
+# FIX EXCEL CORRUPT
 # =========================
 def fix_excel_styles(path):
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -147,6 +127,7 @@ def fix_excel_styles(path):
                     f.write(content)
 
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
+
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
     os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
 
@@ -157,10 +138,20 @@ def fix_excel_styles(path):
 # =========================
 def safe_load(path, read_only=False):
     try:
-        return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
+        return load_workbook(
+            path,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
     except Exception:
         fixed = fix_excel_styles(path)
-        return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
+        return load_workbook(
+            fixed,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
 
 # =========================
 # FIND COLUMN
@@ -174,7 +165,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO WIDTH
+# AUTO COLUMN WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -200,7 +191,10 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.markdown('<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
+    )
 
     if st.button("🚀 RUN TOOL"):
 
@@ -225,7 +219,8 @@ with st.container():
                 ws_check = wb_check.active
 
                 header = [
-                    str(c.value).replace("\xa0", " ").strip() if c.value else ""
+                    str(c.value).replace("\xa0", " ").strip()
+                    if c.value else ""
                     for c in ws_check[1]
                 ]
 
@@ -239,15 +234,22 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+            # =========================
+            # READ FILE 2
+            # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
+            # =========================
+            # PROCESS FILE 1
+            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
+            # 🔥 OPEN FILE AT TOP
             ws.sheet_view.topLeftCell = "A1"
             ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -258,20 +260,29 @@ with st.container():
                 st.stop()
 
             yellow = PatternFill("solid", fgColor="FFFF00")
+
             ketqua_numbers = set()
             count = 0
 
             header_fill = PatternFill("solid", fgColor="000080")
+            header_font = Font(color="FFFFFF", bold=True)
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = header_font
+
+            bold_font = Font(bold=True)
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
 
             for cell in ws[1]:
                 if cell.value:
                     cell.fill = header_fill
                     cell.font = Font(color="FFFFFF", bold=True)
-
-            for row in ws.iter_rows():
-                for cell in row:
-                    if cell.value:
-                        cell.font = Font(bold=True)
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -287,9 +298,13 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
+            # =========================
+            # PROCESS FILE 2
+            # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
+            # 🔥 OPEN FILE AT TOP
             ws2.sheet_view.topLeftCell = "A1"
             ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -308,6 +323,9 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
+            # =========================
+            # ZIP
+            # =========================
             zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
