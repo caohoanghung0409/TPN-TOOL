@@ -4,7 +4,6 @@ import re
 import tempfile
 import os
 import zipfile
-import time
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
@@ -17,25 +16,6 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 # =========================
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
-
-if "download_clicked" not in st.session_state:
-    st.session_state["download_clicked"] = False
-
-# =========================
-# AUTO RESET SAU DOWNLOAD
-# =========================
-if st.session_state["download_clicked"]:
-    st.success("Đã tải file! Đang reset...")
-
-    time.sleep(1.5)
-
-    st.session_state["uploader_key"] += 1
-
-    for k in ["ready", "zip_data", "count", "download_clicked"]:
-        if k in st.session_state:
-            del st.session_state[k]
-
-    st.rerun()
 
 # =========================
 # UI
@@ -66,6 +46,7 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
+        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -169,21 +150,16 @@ if st.button("🚀 RUN TOOL"):
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
         with open(zip_buffer.name, "rb") as f:
-            st.session_state["zip_data"] = f.read()
+            zip_data = f.read()
 
-        st.session_state["count"] = count
-        st.session_state["ready"] = True
+    st.success(f"Xong! Matched: {count}")
 
-# =========================
-# DOWNLOAD
-# =========================
-if st.session_state.get("ready"):
-
-    st.success(f"Xong! Matched: {st.session_state['count']}")
-
-    if st.download_button(
+    # DOWNLOAD
+    st.download_button(
         "📥 Download ALL (ZIP)",
-        data=st.session_state["zip_data"],
+        data=zip_data,
         file_name="TPN_RESULT.zip"
-    ):
-        st.session_state["download_clicked"] = True
+    )
+
+    # 👉 RESET NGAY (KHÔNG CHỜ CLICK)
+    st.session_state["uploader_key"] += 1
