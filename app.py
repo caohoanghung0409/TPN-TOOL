@@ -9,61 +9,78 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
-# =========================
-# PAGE CONFIG
-# =========================
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CUSTOM CSS
+# CSS FIX + UI MỚI
 # =========================
 st.markdown("""
 <style>
-.main {
-    background: linear-gradient(135deg, #0ea5e9, #22c55e);
-}
 
+/* ❌ XÓA khoảng trắng trên cùng */
 .block-container {
-    padding-top: 2rem;
+    padding-top: 1rem !important;
 }
 
-.card {
-    background-color: white;
-    padding: 25px;
-    border-radius: 15px;
-    box-shadow: 0px 10px 25px rgba(0,0,0,0.15);
+/* nền xám nhẹ */
+body {
+    background-color: #f1f5f9;
 }
 
-.title {
+/* header */
+.header {
     text-align: center;
-    font-size: 28px;
-    font-weight: bold;
+    padding: 10px 0 20px 0;
+}
+
+.header h1 {
     color: #0284c7;
+    font-size: 28px;
+    margin-bottom: 5px;
 }
 
-.sub {
-    text-align: center;
-    color: #475569;
-    margin-bottom: 20px;
+.header p {
+    color: #64748b;
+    font-size: 14px;
 }
 
+/* card */
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+
+/* button */
 .stButton>button {
     width: 100%;
     height: 45px;
     font-size: 16px;
     border-radius: 10px;
-    background-color: #0284c7;
+    background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
+    border: none;
 }
 
+/* download */
 .stDownloadButton>button {
     width: 100%;
     height: 45px;
-    font-size: 16px;
     border-radius: 10px;
-    background-color: #22c55e;
+    background: #16a34a;
     color: white;
+    font-size: 16px;
 }
+
+/* uploader gọn hơn */
+section[data-testid="stFileUploader"] {
+    border: 2px dashed #cbd5f5;
+    padding: 15px;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -74,13 +91,17 @@ if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 # =========================
-# UI HEADER
+# HEADER
 # =========================
-st.markdown('<div class="title">⚡ TPN TOOL</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub">Xử lý & đối soát Shipment nhanh chóng</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="header">
+    <h1>⚡ TPN TOOL</h1>
+    <p>Xử lý & đối soát Shipment nhanh chóng</p>
+</div>
+""", unsafe_allow_html=True)
 
 # =========================
-# CARD START
+# CARD
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -220,10 +241,6 @@ if st.button("🚀 RUN TOOL"):
         file_name="TPN_RESULT.zip"
     )
 
-    # RESET NGAY
     st.session_state["uploader_key"] += 1
 
-# =========================
-# CARD END
-# =========================
 st.markdown('</div>', unsafe_allow_html=True)
