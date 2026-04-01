@@ -11,39 +11,42 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (SAFE - KHÔNG CRASH)
+# SAFE READ EXCEL (FIX CRASH STYLE)
+# =========================
+def safe_read_excel(path, **kwargs):
+    try:
+        return pd.read_excel(path, engine="openpyxl", **kwargs)
+
+    except Exception:
+        # 🔥 FIX: remove broken styles.xml
+        tmp_fixed = path.replace(".xlsx", "_fixed.xlsx")
+
+        with zipfile.ZipFile(path, "r") as zin:
+            with zipfile.ZipFile(tmp_fixed, "w") as zout:
+                for item in zin.infolist():
+                    if item.filename != "xl/styles.xml":  # remove broken style
+                        zout.writestr(item, zin.read(item.filename))
+
+        return pd.read_excel(tmp_fixed, engine="openpyxl", **kwargs)
+
+
+# =========================
+# CSS
 # =========================
 st.markdown("""
 <style>
-
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-[data-testid="stFileUploader"] small {
-    display: none !important;
-}
-
-.block-container {
-    padding-top: 0rem !important;
-}
-
-html, body {
-    background-color: #f1f5f9;
-}
+.block-container {padding-top: 0rem !important;}
 
 .header {
     text-align: center;
     padding: 8px 0;
 }
-.header h1 {
-    color: #0284c7;
-    margin: 0;
-}
-.header p {
-    color: #64748b;
-    margin: 0;
-}
+.header h1 {color: #0284c7; margin: 0;}
+.header p {color: #64748b; margin: 0;}
 
 .card {
     background: white;
@@ -66,14 +69,6 @@ html, body {
     background: #16a34a;
     color: white;
 }
-
-section[data-testid="stFileUploader"] {
-    border: 2px dashed #cbd5f5;
-    padding: 12px;
-    border-radius: 10px;
-    background: #f8fafc;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,7 +89,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD UI
+# UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -106,11 +101,6 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.markdown(
-        '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
-        unsafe_allow_html=True
-    )
-
     if st.button("🚀 RUN TOOL"):
 
         if not uploaded_files or len(uploaded_files) != 2:
@@ -120,12 +110,11 @@ with st.container():
         with st.spinner("⏳ Đang xử lý..."):
 
             tmp_dir = tempfile.gettempdir()
-
             path_tpn = None
             path_book1 = None
 
             # =========================
-            # SAFE READ FILE
+            # SAVE FILES + DETECT
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -133,8 +122,7 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                df_check = pd.read_excel(path, nrows=1)
-
+                df_check = safe_read_excel(path, nrows=1)
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -146,9 +134,9 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # PROCESS FILE 1
+            # FILE 1 PROCESS
             # =========================
-            df = pd.read_excel(path_book1, usecols=[0])
+            df = safe_read_excel(path_book1, usecols=[0])
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
@@ -181,7 +169,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # PROCESS FILE 2
+            # FILE 2 PROCESS
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -198,29 +186,6 @@ with st.container():
 
             wb2.save(kehoach_path)
             wb2.close()
-
-            # =========================================================
-            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
-            # =========================================================
-            def fix_excel_view(path):
-                wb_fix = load_workbook(path)
-                ws_fix = wb_fix.active
-
-                ws_fix.sheet_view.topLeftCell = "A1"
-
-                ws_fix.sheet_view.selection.clear()
-                ws_fix.sheet_view.selection.append(
-                    type("Selection", (), {
-                        "activeCell": "A1",
-                        "sqref": "A1"
-                    })()
-                )
-
-                wb_fix.save(path)
-                wb_fix.close()
-
-            fix_excel_view(save_path)
-            fix_excel_view(kehoach_path)
 
             # =========================
             # ZIP OUTPUT
