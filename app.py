@@ -11,7 +11,7 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (SAFE - KHÔNG CRASH)
+# CSS
 # =========================
 st.markdown("""
 <style>
@@ -124,9 +124,6 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
-            # =========================
-            # SAFE READ FILE
-            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
@@ -134,7 +131,6 @@ with st.container():
                     f.write(file.read())
 
                 df_check = pd.read_excel(path, nrows=1)
-
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -146,7 +142,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # PROCESS FILE 1
+            # FILE 1
             # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
@@ -181,7 +177,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # PROCESS FILE 2
+            # FILE 2
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -199,15 +195,14 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================================================
-            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
-            # =========================================================
-            def fix_excel_view(path):
+            # =========================
+            # FIX A1 + AUTO FIT FILE 2
+            # =========================
+            def fix_excel(path, auto_fit=False):
                 wb_fix = load_workbook(path)
                 ws_fix = wb_fix.active
 
                 ws_fix.sheet_view.topLeftCell = "A1"
-
                 ws_fix.sheet_view.selection.clear()
                 ws_fix.sheet_view.selection.append(
                     type("Selection", (), {
@@ -216,14 +211,28 @@ with st.container():
                     })()
                 )
 
+                # =========================
+                # AUTO FIT COLUMNS (CHỈ FILE 2)
+                # =========================
+                if auto_fit:
+                    for col in ws_fix.columns:
+                        max_length = 0
+                        col_letter = col[0].column_letter
+
+                        for cell in col:
+                            if cell.value:
+                                max_length = max(max_length, len(str(cell.value)))
+
+                        ws_fix.column_dimensions[col_letter].width = max_length + 2
+
                 wb_fix.save(path)
                 wb_fix.close()
 
-            fix_excel_view(save_path)
-            fix_excel_view(kehoach_path)
+            fix_excel(save_path, auto_fit=False)
+            fix_excel(kehoach_path, auto_fit=True)  # 🔥 FILE 2 AUTO FIT
 
             # =========================
-            # ZIP OUTPUT
+            # ZIP
             # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
