@@ -11,41 +11,35 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX (CHỈ ẨN 200MB)
+# CSS (SAFE - KHÔNG CRASH)
 # =========================
 st.markdown("""
 <style>
 
-/* ẨN HEADER */
+/* ẨN HEADER STREAMLIT */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* 🎯 CHỈ ẨN DÒNG 200MB */
+/* CHỈ ẨN DÒNG 200MB (SAFE) */
 [data-testid="stFileUploader"] small {
     display: none !important;
 }
 
-/* fallback thêm nếu Streamlit đổi cấu trúc */
-[data-testid="stFileUploader"] div[data-testid="stFileUploaderDropzoneInstructions"] {
-    font-size: 14px;
-}
-
-/* FIX KHOẢNG TRẮNG */
-[data-testid="stAppViewContainer"],
+/* UI CLEAN */
 .block-container {
     padding-top: 0rem !important;
 }
 
-/* BODY */
+/* BACKGROUND */
 html, body {
     background-color: #f1f5f9;
 }
 
-/* HEADER */
+/* HEADER STYLE */
 .header {
     text-align: center;
-    padding: 5px 0;
+    padding: 8px 0;
 }
 .header h1 {
     color: #0284c7;
@@ -109,7 +103,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD
+# CARD UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -121,7 +115,6 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    # TEXT CUSTOM
     st.markdown(
         '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
         unsafe_allow_html=True
@@ -133,20 +126,29 @@ with st.container():
             st.error("⚠️ Vui lòng chọn đúng 2 file!")
             st.stop()
 
-        with st.spinner("⏳ Đang xử lý dữ liệu..."):
+        with st.spinner("⏳ Đang xử lý..."):
 
             tmp_dir = tempfile.gettempdir()
 
             path_tpn = None
             path_book1 = None
 
+            # =========================
+            # SAFE READ FILE
+            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
-                with open(path, "wb") as f:
-                    f.write(file.read())
+                try:
+                    with open(path, "wb") as f:
+                        f.write(file.read())
 
-                df_check = pd.read_excel(path, nrows=1)
+                    df_check = pd.read_excel(path, nrows=1)
+
+                except Exception as e:
+                    st.error(f"❌ File lỗi: {file.name}")
+                    st.stop()
+
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -154,9 +156,16 @@ with st.container():
                 else:
                     path_book1 = path
 
+            if not path_tpn or not path_book1:
+                st.error("❌ Không nhận diện được 2 file đúng định dạng")
+                st.stop()
+
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+            # =========================
+            # PROCESS FILE 1
+            # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
             all_numbers = set()
@@ -169,6 +178,10 @@ with st.container():
             header = [cell.value for cell in ws[1]]
             col_index = next((i + 1 for i, v in enumerate(header)
                               if v and str(v).strip() == "Shipment Nbr"), None)
+
+            if not col_index:
+                st.error("❌ Không tìm thấy cột Shipment Nbr")
+                st.stop()
 
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
@@ -189,6 +202,9 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
+            # =========================
+            # PROCESS FILE 2
+            # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
 
@@ -205,6 +221,9 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
+            # =========================
+            # ZIP OUTPUT
+            # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
             with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
