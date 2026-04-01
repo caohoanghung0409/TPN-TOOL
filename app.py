@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 import re
@@ -7,12 +8,11 @@ import zipfile
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
-from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL + REPLACE TEXT
+# CSS FIX FULL (ẨN 200MB 100%)
 # =========================
 st.markdown("""
 <style>
@@ -22,67 +22,41 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* 🔥 ẨN TEXT GỐC */
-div[data-testid="stFileUploader"] small {
-    visibility: hidden;
-    position: relative;
+/* 🔥 DIỆT SẠCH TEXT 200MB */
+[data-testid="stFileUploader"] div {
+    font-size: 0px !important;
+}
+[data-testid="stFileUploader"] span {
+    font-size: 0px !important;
 }
 
-/* 🔥 THAY TEXT MỚI NGAY VỊ TRÍ ĐÓ */
-div[data-testid="stFileUploader"] small::after {
-    content: "📌 Chỉ upload file .xlsx";
-    visibility: visible;
-    position: absolute;
-    left: 0;
-    top: 0;
-    font-size: 12px;
-    color: #64748b;
+/* 🔥 GIỮ LẠI LABEL CHÍNH */
+[data-testid="stFileUploader"] label {
+    font-size: 14px !important;
 }
 
-/* 🔥 FIX KHOẢNG TRẮNG TRÊN */
+/* 🔥 FIX KHOẢNG TRẮNG */
 [data-testid="stAppViewContainer"],
-[data-testid="stAppViewBlockContainer"],
-section.main,
-section.main > div,
 .block-container {
     padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
-/* 🔥 XÓA BLOCK RỖNG */
-div[data-testid="stVerticalBlock"] > div:first-child:empty {
-    display: none !important;
-}
-
-div[data-testid="stVerticalBlock"] > div:first-child {
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
 }
 
 /* ===== BODY ===== */
 html, body {
-    margin: 0 !important;
-    padding: 0 !important;
     background-color: #f1f5f9;
 }
 
 /* ===== HEADER ===== */
 .header {
     text-align: center;
-    margin: 0;
-    padding: 5px 0 8px 0;
+    padding: 5px 0;
 }
-
 .header h1 {
     color: #0284c7;
-    font-size: 26px;
     margin: 0;
 }
-
 .header p {
     color: #64748b;
-    font-size: 13px;
     margin: 0;
 }
 
@@ -91,7 +65,6 @@ html, body {
     background: white;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
 
 /* ===== BUTTON ===== */
@@ -101,7 +74,6 @@ html, body {
     border-radius: 10px;
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
-    font-size: 15px;
 }
 
 /* ===== DOWNLOAD ===== */
@@ -153,6 +125,12 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
+    # TEXT THAY THẾ
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
+    )
+
     if st.button("🚀 RUN TOOL"):
 
         if not uploaded_files or len(uploaded_files) != 2:
@@ -180,10 +158,6 @@ with st.container():
                 else:
                     path_book1 = path
 
-            if not path_tpn or not path_book1:
-                st.error("❌ Không detect được file!")
-                st.stop()
-
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
@@ -191,7 +165,7 @@ with st.container():
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
-                all_numbers.update(re.findall(r"\d{4}", v))
+                all_numbers.update(re.findall(r"\\d{4}", v))
 
             wb = load_workbook(path_tpn)
             ws = wb.active
@@ -209,16 +183,12 @@ with st.container():
                 val = ws.cell(row=i, column=col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
                         ws.cell(row=i, column=col_index).fill = yellow_fill
                         count += 1
-
-            ws.sheet_view.selection[0].activeCell = "A1"
-            ws.sheet_view.selection[0].sqref = "A1"
-            ws.sheet_view.topLeftCell = "A1"
 
             wb.save(save_path)
             wb.close()
@@ -232,23 +202,9 @@ with st.container():
                 val = ws2.cell(row=i, column=1).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(row=i, column=1).font = red_font
-
-            for col in ws2.columns:
-                max_length = 0
-                col_letter = get_column_letter(col[0].column)
-
-                for cell in col:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-
-                ws2.column_dimensions[col_letter].width = min(max_length + 2, 50)
-
-            ws2.sheet_view.selection[0].activeCell = "A1"
-            ws2.sheet_view.selection[0].sqref = "A1"
-            ws2.sheet_view.topLeftCell = "A1"
 
             wb2.save(kehoach_path)
             wb2.close()
@@ -273,3 +229,4 @@ with st.container():
         st.session_state["uploader_key"] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
+```
