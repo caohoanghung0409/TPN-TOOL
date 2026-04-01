@@ -1,34 +1,14 @@
 import streamlit as st
-import pandas as pd
 import re
 import tempfile
 import os
 import zipfile
+import xlwings as xw
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
-
-# =========================
-# SAFE READ EXCEL (FIX CRASH STYLE)
-# =========================
-def safe_read_excel(path, **kwargs):
-    try:
-        return pd.read_excel(path, engine="openpyxl", **kwargs)
-
-    except Exception:
-        # 🔥 FIX: remove broken styles.xml
-        tmp_fixed = path.replace(".xlsx", "_fixed.xlsx")
-
-        with zipfile.ZipFile(path, "r") as zin:
-            with zipfile.ZipFile(tmp_fixed, "w") as zout:
-                for item in zin.infolist():
-                    if item.filename != "xl/styles.xml":  # remove broken style
-                        zout.writestr(item, zin.read(item.filename))
-
-        return pd.read_excel(tmp_fixed, engine="openpyxl", **kwargs)
-
 
 # =========================
 # CSS
@@ -73,6 +53,38 @@ footer {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # =========================
+# XLWINGS HELPERS (GIỐNG APP EXE)
+# =========================
+def get_header_xlwings(path):
+    app = xw.App(visible=False)
+    wb = app.books.open(path)
+    ws = wb.sheets[0]
+
+    header = ws.range("A1").expand("right").value
+
+    wb.close()
+    app.quit()
+
+    return [str(x).strip() if x else "" for x in header]
+
+
+def read_col_xlwings(path, col=1):
+    app = xw.App(visible=False)
+    wb = app.books.open(path)
+    ws = wb.sheets[0]
+
+    data = ws.range((2, col)).expand("down").value
+
+    wb.close()
+    app.quit()
+
+    if not isinstance(data, list):
+        return []
+
+    return data
+
+
+# =========================
 # STATE
 # =========================
 if "uploader_key" not in st.session_state:
@@ -110,11 +122,12 @@ with st.container():
         with st.spinner("⏳ Đang xử lý..."):
 
             tmp_dir = tempfile.gettempdir()
+
             path_tpn = None
             path_book1 = None
 
             # =========================
-            # SAVE FILES + DETECT
+            # SAVE FILES + DETECT (XLWINGS FIX)
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -122,8 +135,7 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                df_check = safe_read_excel(path, nrows=1)
-                header = [str(x).strip() for x in df_check.columns]
+                header = get_header_xlwings(path)
 
                 if "Shipment Nbr" in header:
                     path_tpn = path
@@ -134,14 +146,18 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1 PROCESS
+            # FILE 1 (XLWINGS READ)
             # =========================
-            df = safe_read_excel(path_book1, usecols=[0])
+            col_data = read_col_xlwings(path_book1, 1)
 
             all_numbers = set()
-            for v in df.iloc[:, 0].dropna().astype(str):
-                all_numbers.update(re.findall(r"\d{4}", v))
+            for v in col_data:
+                if v:
+                    all_numbers.update(re.findall(r"\d{4}", str(v)))
 
+            # =========================
+            # OPEN TPN (OPENPYXL MODIFY STYLE)
+            # =========================
             wb = load_workbook(path_tpn)
             ws = wb.active
 
@@ -169,7 +185,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2 PROCESS
+            # FILE 2 (OPENPYXL)
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -180,7 +196,7 @@ with st.container():
                 val = ws2.cell(row=i, column=1).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\d\{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(row=i, column=1).font = red_font
 
