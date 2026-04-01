@@ -16,12 +16,12 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 st.markdown("""
 <style>
 
-/* 🔥 ẨN HEADER STREAMLIT */
+/* ẨN HEADER STREAMLIT */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* 🔥 DIỆT SẠCH TEXT 200MB */
+/* DIỆT SẠCH TEXT 200MB */
 [data-testid="stFileUploader"] div {
     font-size: 0px !important;
 }
@@ -29,23 +29,23 @@ footer {visibility: hidden;}
     font-size: 0px !important;
 }
 
-/* 🔥 GIỮ LẠI LABEL CHÍNH */
+/* GIỮ LẠI LABEL CHÍNH */
 [data-testid="stFileUploader"] label {
     font-size: 14px !important;
 }
 
-/* 🔥 FIX KHOẢNG TRẮNG */
+/* FIX KHOẢNG TRẮNG */
 [data-testid="stAppViewContainer"],
 .block-container {
     padding-top: 0rem !important;
 }
 
-/* ===== BODY ===== */
+/* BODY */
 html, body {
     background-color: #f1f5f9;
 }
 
-/* ===== HEADER ===== */
+/* HEADER */
 .header {
     text-align: center;
     padding: 5px 0;
@@ -59,14 +59,14 @@ html, body {
     margin: 0;
 }
 
-/* ===== CARD ===== */
+/* CARD */
 .card {
     background: white;
     padding: 20px;
     border-radius: 12px;
 }
 
-/* ===== BUTTON ===== */
+/* BUTTON */
 .stButton>button {
     width: 100%;
     height: 42px;
@@ -75,7 +75,7 @@ html, body {
     color: white;
 }
 
-/* ===== DOWNLOAD ===== */
+/* DOWNLOAD */
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
@@ -84,7 +84,7 @@ html, body {
     color: white;
 }
 
-/* ===== UPLOADER ===== */
+/* UPLOADER */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #cbd5f5;
     padding: 12px;
@@ -164,7 +164,7 @@ with st.container():
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
-                all_numbers.update(re.findall(r"\\d{4}", v))
+                all_numbers.update(re.findall(r"\d{4}", v))
 
             wb = load_workbook(path_tpn)
             ws = wb.active
@@ -182,7 +182,7 @@ with st.container():
                 val = ws.cell(row=i, column=col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\\d{4}", str(val)))
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -201,7 +201,7 @@ with st.container():
                 val = ws2.cell(row=i, column=1).value
 
                 if val:
-                    nums = set(re.findall(r"\\d{4}", str(val)))
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(row=i, column=1).font = red_font
 
@@ -228,4 +228,3 @@ with st.container():
         st.session_state["uploader_key"] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
-```
