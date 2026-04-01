@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX + HIDE MANAGE APP
+# CSS FIX FULL
 # =========================
 st.markdown("""
 <style>
@@ -32,27 +32,16 @@ section.main > div,
     margin-top: 0rem !important;
 }
 
-/* 🔥 XÓA BLOCK RỖNG */
+/* 🔥 XÓA BLOCK RỖNG (CHÍNH LÀ Ô TRẮNG CỦA BẠN) */
 div[data-testid="stVerticalBlock"] > div:first-child:empty {
     display: none !important;
 }
 
+/* 🔥 backup: nếu nó không empty hoàn toàn */
 div[data-testid="stVerticalBlock"] > div:first-child {
     min-height: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
-}
-
-/* 🔥 HIDE "MANAGE APP" (CHE ĐI) */
-body::after {
-    content: "";
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    width: 220px;
-    height: 90px;
-    background: #f1f5f9;
-    z-index: 9999;
 }
 
 /* ===== BODY ===== */
@@ -136,7 +125,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD
+# CARD (ĐẶT ĐÚNG VỊ TRÍ - KHÔNG TẠO BLOCK RỖNG)
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
