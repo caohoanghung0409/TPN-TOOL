@@ -11,22 +11,52 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# SAFE EXCEL READ (FIX ERROR OPENPYXL STYLE)
+# SAFE READ EXCEL (FIX CRASH OPENPYXL STYLE)
 # =========================
 def safe_read_excel(path):
+    """
+    Fix lỗi: openpyxl Stylesheet fills/theme corrupted
+    KHÔNG dùng load_workbook trong bước detect file nữa
+    """
+
+    # 1. pandas + openpyxl
     try:
         return pd.read_excel(path, nrows=1, engine="openpyxl")
     except Exception:
-        # fallback bypass stylesheet lỗi
-        wb = load_workbook(path, data_only=True, read_only=True)
-        ws = wb.active
-        data = list(ws.values)
+        pass
 
-        if not data:
+    # 2. pandas fallback engine
+    try:
+        return pd.read_excel(path, nrows=1)
+    except Exception:
+        pass
+
+    # 3. cực fallback (nếu file quá lỗi)
+    try:
+        import zipfile
+        import xml.etree.ElementTree as ET
+
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("xl/worksheets/sheet1.xml")
+
+        root = ET.fromstring(xml)
+
+        rows = []
+        for row in root.iter():
+            if "row" in row.tag:
+                values = []
+                for c in row:
+                    values.append(c.text)
+                rows.append(values)
+
+        if not rows:
             return pd.DataFrame()
 
-        df = pd.DataFrame(data[1:], columns=data[0])
-        return df.head(1)
+        return pd.DataFrame(rows).head(1)
+
+    except Exception:
+        return pd.DataFrame()
+
 
 # =========================
 # CSS
@@ -37,10 +67,6 @@ st.markdown("""
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-
-[data-testid="stFileUploader"] small {
-    display: none !important;
-}
 
 .block-container {
     padding-top: 0rem !important;
@@ -95,11 +121,13 @@ section[data-testid="stFileUploader"] {
 </style>
 """, unsafe_allow_html=True)
 
+
 # =========================
 # STATE
 # =========================
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
+
 
 # =========================
 # HEADER
@@ -111,8 +139,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+
 # =========================
-# CARD UI
+# UI CARD
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -142,16 +171,21 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
+            # =========================
+            # SAVE FILES + DETECT TYPE SAFE
+            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                # =========================
-                # FIX ERROR HERE
-                # =========================
                 df_check = safe_read_excel(path)
+
+                if df_check.empty:
+                    st.error(f"❌ File lỗi không đọc được: {file.name}")
+                    st.stop()
+
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -159,11 +193,15 @@ with st.container():
                 else:
                     path_book1 = path
 
+            if not path_tpn or not path_book1:
+                st.error("❌ Không xác định được file TPN hoặc file Book1")
+                st.stop()
+
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1
+            # FILE 1 PROCESS
             # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
@@ -178,6 +216,10 @@ with st.container():
             col_index = next((i + 1 for i, v in enumerate(header)
                               if v and str(v).strip() == "Shipment Nbr"), None)
 
+            if not col_index:
+                st.error("❌ Không tìm thấy cột Shipment Nbr")
+                st.stop()
+
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
             ketqua_numbers = set()
@@ -187,7 +229,7 @@ with st.container():
                 val = ws.cell(row=i, column=col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d" * 4, str(val)))
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -198,7 +240,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2
+            # FILE 2 PROCESS
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -217,7 +259,7 @@ with st.container():
             wb2.close()
 
             # =========================
-            # FIX A1 + AUTO FIT FILE 2
+            # FIX A1 + AUTO FIT
             # =========================
             def fix_excel(path, auto_fit=False):
                 wb_fix = load_workbook(path)
@@ -243,7 +285,7 @@ with st.container():
             fix_excel(kehoach_path, auto_fit=True)
 
             # =========================
-            # ZIP
+            # ZIP OUTPUT
             # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
