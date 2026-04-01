@@ -15,7 +15,7 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (CENTER UI + CLEAN DESIGN)
+# CSS (CENTER UI FIX)
 # =========================
 st.markdown("""
 <style>
@@ -23,72 +23,85 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
+/* ===== CENTER WHOLE APP ===== */
 .block-container {
-    max-width: 720px !important;
-    padding-top: 2rem;
-    margin: auto;
+    max-width: 900px !important;
+    margin: auto !important;
+    padding-top: 1rem !important;
+    text-align: center !important;
 }
 
-/* BACKGROUND */
+/* background */
 html, body {
-    background: linear-gradient(135deg, #f1f5f9, #e0f2fe);
+    background-color: #f1f5f9;
 }
 
-/* HEADER */
+/* header */
 .header {
     text-align: center;
-    padding: 10px 0 20px 0;
+    padding: 10px 0;
 }
 
 .header h1 {
     color: #0284c7;
     margin: 0;
-    font-size: 34px;
-    font-weight: 700;
 }
 
 .header p {
     color: #64748b;
     margin: 0;
-    font-size: 14px;
 }
 
-/* CARD CENTER */
+/* card */
 .card {
     background: white;
-    padding: 24px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    margin-top: 10px;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    text-align: center;
 }
 
-/* BUTTON */
+/* buttons full width but centered block */
 .stButton>button {
     width: 100%;
-    height: 45px;
-    border-radius: 12px;
+    height: 42px;
+    border-radius: 10px;
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
-    font-weight: 600;
-    border: none;
+    display: block;
+    margin: auto;
 }
 
-/* DOWNLOAD BUTTON */
+/* download button */
 .stDownloadButton>button {
     width: 100%;
-    height: 45px;
-    border-radius: 12px;
+    height: 42px;
+    border-radius: 10px;
     background: #16a34a;
     color: white;
-    font-weight: 600;
+    display: block;
+    margin: auto;
 }
 
-/* UPLOADER */
+/* uploader center */
 section[data-testid="stFileUploader"] {
-    border: 2px dashed #93c5fd;
-    padding: 14px;
-    border-radius: 12px;
+    border: 2px dashed #cbd5f5;
+    padding: 12px;
+    border-radius: 10px;
     background: #f8fafc;
+    text-align: center;
+}
+
+/* remove helper text clutter */
+[data-testid="stFileUploader"] small {
+    display: none !important;
+}
+
+/* center file uploader content */
+[data-testid="stFileUploader"] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -129,6 +142,7 @@ def fix_excel_styles(path):
         for file in os.listdir(sheet_dir):
             if file.endswith(".xml"):
                 fpath = os.path.join(sheet_dir, file)
+
                 with open(fpath, "r", encoding="utf-8") as f:
                     content = f.read()
 
@@ -180,7 +194,7 @@ def auto_adjust_column_width(ws):
         ws.column_dimensions[col_letter].width = max_len + 3
 
 # =========================
-# UI CARD
+# UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -192,7 +206,7 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.caption("Chỉ upload file .xlsx")
+    st.markdown('<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>', unsafe_allow_html=True)
 
     if st.button("🚀 RUN TOOL"):
 
@@ -216,7 +230,12 @@ with st.container():
                 wb_check = safe_load(path, read_only=True)
                 ws_check = wb_check.active
 
-                header = [str(c.value) if c.value else "" for c in ws_check[1]]
+                header = [
+                    str(c.value).replace("\xa0", " ").strip()
+                    if c.value else ""
+                    for c in ws_check[1]
+                ]
+
                 wb_check.close()
 
                 if any("Shipment Nbr" in h for h in header):
@@ -233,9 +252,6 @@ with st.container():
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # FILE 1
-            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
@@ -245,16 +261,22 @@ with st.container():
             col_index = find_shipment_col(ws)
 
             yellow = PatternFill("solid", fgColor="FFFF00")
-
-            ketqua_numbers = set()
-            count = 0
-
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
                 cell.fill = header_fill
                 cell.font = header_font
+
+            bold_font = Font(bold=True)
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
+
+            ketqua_numbers = set()
+            count = 0
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -270,9 +292,6 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
-            # =========================
-            # FILE 2
-            # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
@@ -283,6 +302,7 @@ with st.container():
 
             for i in range(2, ws2.max_row + 1):
                 val = ws2.cell(i, 1).value
+
                 if val:
                     nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
@@ -293,10 +313,7 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
-            # ZIP
-            # =========================
-            zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
+            zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
                 z.write(save_path, "TPN_KET_QUA.xlsx")
@@ -305,12 +322,12 @@ with st.container():
             with open(zip_path, "rb") as f:
                 zip_data = f.read()
 
-        st.success(f"✅ Hoàn tất! Matched: {count}")
+        st.success(f"✅ COMPLETE !!! Matched: {count}")
 
         st.download_button(
             "📥 Download ALL (ZIP)",
             data=zip_data,
-            file_name="TPN_RESULT.zip"
+            file_name="TPN_COMPLETE.zip"
         )
 
         st.session_state["uploader_key"] += 1
