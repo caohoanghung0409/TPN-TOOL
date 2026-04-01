@@ -9,39 +9,53 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX + UI MỚI
+# CSS FIX FULL
 # =========================
 st.markdown("""
 <style>
 
-/* ❌ XÓA khoảng trắng trên cùng */
+/* 🔥 XÓA HEADER STREAMLIT */
+header {visibility: hidden;}
+footer {visibility: hidden;}
+#MainMenu {visibility: hidden;}
+
+/* 🔥 XÓA khoảng trắng trên cùng */
 .block-container {
-    padding-top: 1rem !important;
+    padding-top: 0rem !important;
+    margin-top: 0rem !important;
 }
 
-/* nền xám nhẹ */
+section.main > div {
+    padding-top: 0rem !important;
+}
+
+/* nền */
 body {
     background-color: #f1f5f9;
 }
 
-/* header */
+/* header custom */
 .header {
     text-align: center;
-    padding: 10px 0 20px 0;
+    padding: 10px 0 15px 0;
 }
 
 .header h1 {
     color: #0284c7;
     font-size: 28px;
-    margin-bottom: 5px;
+    margin: 0;
 }
 
 .header p {
     color: #64748b;
     font-size: 14px;
+    margin: 0;
 }
 
 /* card */
@@ -52,18 +66,17 @@ body {
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
 
-/* button */
+/* button RUN */
 .stButton>button {
     width: 100%;
     height: 45px;
-    font-size: 16px;
     border-radius: 10px;
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
-    border: none;
+    font-size: 16px;
 }
 
-/* download */
+/* button DOWNLOAD */
 .stDownloadButton>button {
     width: 100%;
     height: 45px;
@@ -73,7 +86,7 @@ body {
     font-size: 16px;
 }
 
-/* uploader gọn hơn */
+/* uploader */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #cbd5f5;
     padding: 15px;
@@ -85,7 +98,7 @@ section[data-testid="stFileUploader"] {
 """, unsafe_allow_html=True)
 
 # =========================
-# INIT STATE
+# STATE
 # =========================
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
@@ -101,7 +114,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD
+# CARD START
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -128,6 +141,7 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
+        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -149,14 +163,18 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+        # =========================
         # READ BOOK1
+        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
+        # =========================
         # PROCESS TPN
+        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
@@ -191,7 +209,9 @@ if st.button("🚀 RUN TOOL"):
         wb.save(save_path)
         wb.close()
 
+        # =========================
         # PROCESS KE_HOACH
+        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -223,7 +243,9 @@ if st.button("🚀 RUN TOOL"):
         wb2.save(kehoach_path)
         wb2.close()
 
+        # =========================
         # ZIP
+        # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
         with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
@@ -241,6 +263,10 @@ if st.button("🚀 RUN TOOL"):
         file_name="TPN_RESULT.zip"
     )
 
+    # reset uploader
     st.session_state["uploader_key"] += 1
 
+# =========================
+# CARD END
+# =========================
 st.markdown('</div>', unsafe_allow_html=True)
