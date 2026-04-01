@@ -11,7 +11,7 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (SAFE - KHÔNG CRASH)
+# CSS (CHỈ FIX 200MB -> TEXT CUSTOM)
 # =========================
 st.markdown("""
 <style>
@@ -21,22 +21,20 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* CHỈ ẨN DÒNG 200MB (SAFE) */
+/* ❌ ẨN DÒNG 200MB */
 [data-testid="stFileUploader"] small {
     display: none !important;
 }
 
-/* UI CLEAN */
+/* UI KHÔNG ĐỘNG */
 .block-container {
-    padding-top: 0rem !important;
+    padding-top: 1rem !important;
 }
 
-/* BACKGROUND */
 html, body {
     background-color: #f1f5f9;
 }
 
-/* HEADER STYLE */
 .header {
     text-align: center;
     padding: 8px 0;
@@ -50,14 +48,12 @@ html, body {
     margin: 0;
 }
 
-/* CARD */
 .card {
     background: white;
     padding: 20px;
     border-radius: 12px;
 }
 
-/* BUTTON */
 .stButton>button {
     width: 100%;
     height: 42px;
@@ -66,16 +62,14 @@ html, body {
     color: white;
 }
 
-/* DOWNLOAD */
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
-    border-radius: 10px;
     background: #16a34a;
     color: white;
+    border-radius: 10px;
 }
 
-/* UPLOADER */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #cbd5f5;
     padding: 12px;
@@ -103,7 +97,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD UI
+# UI CARD
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -115,6 +109,9 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
+    # =========================
+    # 🔥 THAY THẾ 200MB BẰNG TEXT CỦA BẠN
+    # =========================
     st.markdown(
         '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
         unsafe_allow_html=True
@@ -133,22 +130,13 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
-            # =========================
-            # SAFE READ FILE
-            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
-                try:
-                    with open(path, "wb") as f:
-                        f.write(file.read())
+                with open(path, "wb") as f:
+                    f.write(file.read())
 
-                    df_check = pd.read_excel(path, nrows=1)
-
-                except Exception as e:
-                    st.error(f"❌ File lỗi: {file.name}")
-                    st.stop()
-
+                df_check = pd.read_excel(path, nrows=1)
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -156,16 +144,9 @@ with st.container():
                 else:
                     path_book1 = path
 
-            if not path_tpn or not path_book1:
-                st.error("❌ Không nhận diện được 2 file đúng định dạng")
-                st.stop()
-
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-            # =========================
-            # PROCESS FILE 1
-            # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
             all_numbers = set()
@@ -178,10 +159,6 @@ with st.container():
             header = [cell.value for cell in ws[1]]
             col_index = next((i + 1 for i, v in enumerate(header)
                               if v and str(v).strip() == "Shipment Nbr"), None)
-
-            if not col_index:
-                st.error("❌ Không tìm thấy cột Shipment Nbr")
-                st.stop()
 
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
@@ -202,9 +179,6 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
-            # =========================
-            # PROCESS FILE 2
-            # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
 
@@ -222,8 +196,22 @@ with st.container():
             wb2.close()
 
             # =========================
-            # ZIP OUTPUT
+            # 🔥 FIX A1 (2 FILE)
             # =========================
+            wb = load_workbook(save_path)
+            ws = wb.active
+            ws.sheet_view.selection[0].activeCell = "A1"
+            ws.sheet_view.selection[0].sqref = "A1"
+            wb.save(save_path)
+            wb.close()
+
+            wb2 = load_workbook(kehoach_path)
+            ws2 = wb2.active
+            ws2.sheet_view.selection[0].activeCell = "A1"
+            ws2.sheet_view.selection[0].sqref = "A1"
+            wb2.save(kehoach_path)
+            wb2.close()
+
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
             with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
