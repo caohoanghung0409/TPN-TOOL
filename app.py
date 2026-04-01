@@ -15,32 +15,49 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# FIX UI WHITE SPACE + MODERN STYLE
+# 🔥 HARD FIX STREAMLIT GAP + UI
 # =========================
 st.markdown("""
 <style>
+/* ===== Hide default UI ===== */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* FIX TRIỆT ĐỂ KHOẢNG TRẮNG DƯỚI HEADER */
+/* ===== FULL PAGE FIX ===== */
+html, body {
+    background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+}
+
+/* 🔥 REMOVE STREAMLIT GLOBAL SPACING */
 .block-container {
-    padding-top: 0.8rem !important;
+    padding-top: 0.5rem !important;
     padding-bottom: 0rem !important;
     max-width: 850px;
     margin: auto;
 }
 
-/* BACKGROUND */
-html, body {
-    background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+/* 🔥 REMOVE MAIN WRAPPER GAP (QUAN TRỌNG NHẤT) */
+div[data-testid="stAppViewContainer"] {
+    padding-top: 0px !important;
 }
 
-/* HEADER */
+/* 🔥 REMOVE VERTICAL GAP BETWEEN COMPONENTS */
+div[data-testid="stVerticalBlock"] {
+    gap: 0rem !important;
+}
+
+/* 🔥 REMOVE ELEMENT SPACING */
+div[data-testid="element-container"] {
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
+}
+
+/* ===== HEADER ===== */
 .header {
     text-align: center;
-    padding: 10px 10px 2px 10px;
-    margin-bottom: 0px !important;
+    padding: 10px 10px 0px 10px;
+    margin: 0 !important;
 }
 
 .header h1 {
@@ -55,21 +72,20 @@ html, body {
 .header p {
     color: #64748b;
     font-size: 14px;
-    margin: 0;   /* 🔥 FIX GAP */
-    padding: 0;
+    margin: 0;
 }
 
-/* CARD - sát header luôn */
+/* ===== CARD ===== */
 .card {
     background: white;
     padding: 22px;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
     border: 1px solid #e2e8f0;
-    margin-top: 6px; /* giảm khoảng cách */
+    margin-top: 4px;
 }
 
-/* FILE UPLOADER */
+/* ===== FILE UPLOADER ===== */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #93c5fd;
     padding: 14px;
@@ -77,7 +93,7 @@ section[data-testid="stFileUploader"] {
     background: #f8fafc;
 }
 
-/* BUTTON */
+/* ===== BUTTON ===== */
 .stButton>button {
     width: 100%;
     height: 46px;
@@ -97,7 +113,7 @@ section[data-testid="stFileUploader"] {
     font-weight: 600;
 }
 
-/* NOTE TEXT */
+/* ===== NOTE TEXT ===== */
 .small-note {
     font-size: 12px;
     color: #64748b;
@@ -105,9 +121,9 @@ section[data-testid="stFileUploader"] {
     text-align: center;
 }
 
-/* REMOVE EXTRA PARAGRAPH SPACE STREAMLIT */
+/* ===== REMOVE PARAGRAPH GAP ===== */
 p {
-    margin-bottom: 0px !important;
+    margin: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -129,7 +145,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX EXCEL CORRUPT
+# FIX EXCEL
 # =========================
 def fix_excel_styles(path):
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -164,7 +180,6 @@ def fix_excel_styles(path):
 
     return fixed_path
 
-
 # =========================
 # SAFE LOAD
 # =========================
@@ -174,7 +189,6 @@ def safe_load(path, read_only=False):
     except Exception:
         fixed = fix_excel_styles(path)
         return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
-
 
 # =========================
 # FIND COLUMN
@@ -186,7 +200,6 @@ def find_shipment_col(ws):
             if "Shipment Nbr" in v:
                 return cell.column
     return None
-
 
 # =========================
 # AUTO WIDTH
@@ -201,7 +214,6 @@ def auto_adjust_column_width(ws):
                 max_len = max(max_len, len(str(cell.value)))
 
         ws.column_dimensions[col_letter].width = max_len + 3
-
 
 # =========================
 # UI
@@ -257,14 +269,18 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+            # =========================
             # FILE 2
+            # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
+            # =========================
             # FILE 1
+            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
@@ -294,7 +310,7 @@ with st.container():
                 val = ws.cell(i, col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d\{4\}", str(val)))
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -304,7 +320,9 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
+            # =========================
             # FILE 2 OUTPUT
+            # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
@@ -326,7 +344,9 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
+            # =========================
             # ZIP
+            # =========================
             zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
