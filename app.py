@@ -12,7 +12,7 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CLEAN TEXT (FIX SHIPMENT NBR BUG)
+# CLEAN TEXT (ROBUST FIX ERP EXPORT)
 # =========================
 def clean_text(x):
     if x is None:
@@ -23,6 +23,10 @@ def clean_text(x):
     x = x.replace("\n", " ").replace("\r", " ")
     x = re.sub(r"\s+", " ", x)
     return x.strip().lower()
+
+def is_shipment_col(x):
+    v = clean_text(x)
+    return ("shipment" in v) and ("nbr" in v)
 
 # =========================
 # CSS (SAFE - KHÔNG CRASH)
@@ -139,7 +143,7 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAFE READ FILE (FIX HERE)
+            # SAFE READ FILE (FIX HEADER ISSUE)
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -151,7 +155,7 @@ with st.container():
 
                 header = [clean_text(x) for x in df_check.columns]
 
-                if "shipment nbr" in header:
+                if any(is_shipment_col(x) for x in header):
                     path_tpn = path
                 else:
                     path_book1 = path
@@ -173,12 +177,18 @@ with st.container():
 
             header = [cell.value for cell in ws[1]]
 
-            # FIX HERE (robust match)
-            col_index = next(
-                (i + 1 for i, v in enumerate(header)
-                 if clean_text(v) == "shipment nbr"),
-                None
-            )
+            # =========================
+            # FIX: FIND SHIPMENT COLUMN ROBUST
+            # =========================
+            col_index = None
+            for i, cell in enumerate(ws[1], start=1):
+                if is_shipment_col(cell.value):
+                    col_index = i
+                    break
+
+            if col_index is None:
+                st.error("❌ Không tìm thấy cột Shipment Nbr (file export format lạ)")
+                st.stop()
 
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
@@ -218,9 +228,9 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================================================
-            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
-            # =========================================================
+            # =========================
+            # FIX A1 VIEW
+            # =========================
             def fix_excel_view(path):
                 wb_fix = load_workbook(path)
                 ws_fix = wb_fix.active
