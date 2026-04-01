@@ -15,49 +15,33 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# 🔥 HARD FIX STREAMLIT GAP + UI
+# MODERN UI - CSS UPGRADE
 # =========================
 st.markdown("""
 <style>
-/* ===== Hide default UI ===== */
-header {display: none !important;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+html, body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #f0f9ff, #ecfeff);
+}
+
+/* hide default streamlit UI */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+header {display: none !important;}
 
-/* ===== FULL PAGE FIX ===== */
-html, body {
-    background: linear-gradient(135deg, #e0f2fe, #f8fafc);
-}
-
-/* 🔥 REMOVE STREAMLIT GLOBAL SPACING */
+/* center container */
 .block-container {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0rem !important;
-    max-width: 850px;
-    margin: auto;
+    padding-top: 1.2rem !important;
+    max-width: 900px;
 }
 
-/* 🔥 REMOVE MAIN WRAPPER GAP (QUAN TRỌNG NHẤT) */
-div[data-testid="stAppViewContainer"] {
-    padding-top: 0px !important;
-}
-
-/* 🔥 REMOVE VERTICAL GAP BETWEEN COMPONENTS */
-div[data-testid="stVerticalBlock"] {
-    gap: 0rem !important;
-}
-
-/* 🔥 REMOVE ELEMENT SPACING */
-div[data-testid="element-container"] {
-    margin-bottom: 0px !important;
-    padding-bottom: 0px !important;
-}
-
-/* ===== HEADER ===== */
+/* HEADER */
 .header {
     text-align: center;
-    padding: 10px 10px 0px 10px;
-    margin: 0 !important;
+    margin-bottom: 20px;
+    animation: fadeIn 0.6s ease-in-out;
 }
 
 .header h1 {
@@ -66,26 +50,52 @@ div[data-testid="element-container"] {
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin: 0;
+    margin-bottom: 6px;
 }
 
 .header p {
-    color: #64748b;
+    color: #475569;
     font-size: 14px;
-    margin: 0;
 }
 
-/* ===== CARD ===== */
+/* CARD */
 .card {
     background: white;
-    padding: 22px;
-    border-radius: 16px;
+    padding: 24px;
+    border-radius: 18px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
     border: 1px solid #e2e8f0;
-    margin-top: 4px;
+    animation: fadeInUp 0.5s ease-in-out;
 }
 
-/* ===== FILE UPLOADER ===== */
+/* buttons */
+.stButton>button {
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    background: linear-gradient(90deg, #0ea5e9, #22c55e);
+    color: white;
+    transition: 0.2s;
+}
+
+.stButton>button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 15px rgba(34,197,94,0.25);
+}
+
+/* download button */
+.stDownloadButton>button {
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
+    font-weight: 600;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+    color: white;
+}
+
+/* file uploader */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #93c5fd;
     padding: 14px;
@@ -93,37 +103,20 @@ section[data-testid="stFileUploader"] {
     background: #f8fafc;
 }
 
-/* ===== BUTTON ===== */
-.stButton>button {
-    width: 100%;
-    height: 46px;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #0ea5e9, #22c55e);
-    color: white;
-    font-weight: 600;
-    border: none;
+/* hide small note */
+[data-testid="stFileUploader"] small {
+    display: none !important;
 }
 
-.stDownloadButton>button {
-    width: 100%;
-    height: 46px;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #22c55e, #16a34a);
-    color: white;
-    font-weight: 600;
+/* animation */
+@keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
 }
 
-/* ===== NOTE TEXT ===== */
-.small-note {
-    font-size: 12px;
-    color: #64748b;
-    margin-top: 6px;
-    text-align: center;
-}
-
-/* ===== REMOVE PARAGRAPH GAP ===== */
-p {
-    margin: 0 !important;
+@keyframes fadeInUp {
+    from {opacity: 0; transform: translateY(10px);}
+    to {opacity: 1; transform: translateY(0);}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -135,7 +128,7 @@ if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 # =========================
-# HEADER
+# HEADER UI
 # =========================
 st.markdown("""
 <div class="header">
@@ -145,7 +138,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX EXCEL
+# FIX EXCEL CORRUPT
 # =========================
 def fix_excel_styles(path):
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -216,10 +209,9 @@ def auto_adjust_column_width(ws):
         ws.column_dimensions[col_letter].width = max_len + 3
 
 # =========================
-# UI
+# UI CARD
 # =========================
 with st.container():
-
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
@@ -229,7 +221,10 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.markdown('<div class="small-note">📌 Chỉ upload đúng 2 file .xlsx</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
+    )
 
     if st.button("🚀 RUN TOOL"):
 
@@ -254,8 +249,7 @@ with st.container():
                 ws_check = wb_check.active
 
                 header = [
-                    str(c.value).replace("\xa0", " ").strip()
-                    if c.value else ""
+                    str(c.value).replace("\xa0", " ").strip() if c.value else ""
                     for c in ws_check[1]
                 ]
 
@@ -270,7 +264,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 2
+            # FILE 1
             # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
@@ -278,9 +272,6 @@ with st.container():
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # FILE 1
-            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
@@ -298,13 +289,20 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            header_fill = PatternFill("solid", fgColor="000080")
+            header_fill = PatternFill("solid", fgColor="0B3D91")
             header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
                 if cell.value:
                     cell.fill = header_fill
                     cell.font = header_font
+
+            bold_font = Font(bold=True)
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -321,7 +319,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2 OUTPUT
+            # FILE 2
             # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
@@ -333,7 +331,6 @@ with st.container():
 
             for i in range(2, ws2.max_row + 1):
                 val = ws2.cell(i, 1).value
-
                 if val:
                     nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
@@ -359,7 +356,7 @@ with st.container():
         st.success(f"✅ COMPLETE !!! Matched: {count}")
 
         st.download_button(
-            "📥 DOWNLOAD ZIP",
+            "📥 Download ALL (ZIP)",
             data=zip_data,
             file_name="TPN_COMPLETE.zip"
         )
