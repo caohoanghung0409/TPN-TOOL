@@ -9,7 +9,63 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
+
+# =========================
+# CUSTOM CSS
+# =========================
+st.markdown("""
+<style>
+.main {
+    background: linear-gradient(135deg, #0ea5e9, #22c55e);
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
+.card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0px 10px 25px rgba(0,0,0,0.15);
+}
+
+.title {
+    text-align: center;
+    font-size: 28px;
+    font-weight: bold;
+    color: #0284c7;
+}
+
+.sub {
+    text-align: center;
+    color: #475569;
+    margin-bottom: 20px;
+}
+
+.stButton>button {
+    width: 100%;
+    height: 45px;
+    font-size: 16px;
+    border-radius: 10px;
+    background-color: #0284c7;
+    color: white;
+}
+
+.stDownloadButton>button {
+    width: 100%;
+    height: 45px;
+    font-size: 16px;
+    border-radius: 10px;
+    background-color: #22c55e;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
 # INIT STATE
@@ -18,13 +74,18 @@ if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 # =========================
-# UI
+# UI HEADER
 # =========================
-st.title("TPN TOOL ⚡")
-st.write("Upload 2 file cùng lúc (TPN + Book1)")
+st.markdown('<div class="title">⚡ TPN TOOL</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub">Xử lý & đối soát Shipment nhanh chóng</div>', unsafe_allow_html=True)
+
+# =========================
+# CARD START
+# =========================
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
 uploaded_files = st.file_uploader(
-    "Chọn 2 file Excel",
+    "📂 Chọn 2 file Excel (TPN + Book1)",
     type=["xlsx"],
     accept_multiple_files=True,
     key=f"uploader_{st.session_state['uploader_key']}"
@@ -36,17 +97,16 @@ uploaded_files = st.file_uploader(
 if st.button("🚀 RUN TOOL"):
 
     if not uploaded_files or len(uploaded_files) != 2:
-        st.error("Vui lòng chọn đúng 2 file!")
+        st.error("⚠️ Vui lòng chọn đúng 2 file!")
         st.stop()
 
-    with st.spinner("Đang xử lý..."):
+    with st.spinner("⏳ Đang xử lý dữ liệu..."):
 
         tmp_dir = tempfile.gettempdir()
 
         path_tpn = None
         path_book1 = None
 
-        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -62,7 +122,7 @@ if st.button("🚀 RUN TOOL"):
                 path_book1 = path
 
         if not path_tpn or not path_book1:
-            st.error("Không detect được file!")
+            st.error("❌ Không detect được file!")
             st.stop()
 
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
@@ -84,7 +144,7 @@ if st.button("🚀 RUN TOOL"):
                           if v and str(v).strip() == "Shipment Nbr"), None)
 
         if not col_index:
-            st.error("Không tìm thấy Shipment Nbr")
+            st.error("❌ Không tìm thấy Shipment Nbr")
             st.stop()
 
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
@@ -152,14 +212,18 @@ if st.button("🚀 RUN TOOL"):
         with open(zip_buffer.name, "rb") as f:
             zip_data = f.read()
 
-    st.success(f"Xong! Matched: {count}")
+    st.success(f"✅ Hoàn tất! Matched: {count}")
 
-    # DOWNLOAD
     st.download_button(
         "📥 Download ALL (ZIP)",
         data=zip_data,
         file_name="TPN_RESULT.zip"
     )
 
-    # 👉 RESET NGAY (KHÔNG CHỜ CLICK)
+    # RESET NGAY
     st.session_state["uploader_key"] += 1
+
+# =========================
+# CARD END
+# =========================
+st.markdown('</div>', unsafe_allow_html=True)
