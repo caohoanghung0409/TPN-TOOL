@@ -11,7 +11,7 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (GIỮ NGUYÊN)
+# CSS (SAFE - KHÔNG CRASH)
 # =========================
 st.markdown("""
 <style>
@@ -78,6 +78,12 @@ section[data-testid="stFileUploader"] {
 """, unsafe_allow_html=True)
 
 # =========================
+# STATE
+# =========================
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
+
+# =========================
 # HEADER
 # =========================
 st.markdown("""
@@ -88,27 +94,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# SAFE DETECT TPN
+# CARD UI
 # =========================
-def is_tpn(path):
-    try:
-        df = pd.read_excel(path, nrows=10)
-        cols = [str(c).lower() for c in df.columns if c is not None]
-
-        # chỉ cần chứa shipment là đủ
-        return any("shipment" in c for c in cols)
-
-    except Exception:
-        return False
-
-
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
         "📂 Chọn 2 file Excel cần xử lý",
         type=["xlsx"],
-        accept_multiple_files=True
+        accept_multiple_files=True,
+        key=f"uploader_{st.session_state['uploader_key']}"
+    )
+
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
     )
 
     if st.button("🚀 RUN TOOL"):
@@ -121,59 +121,47 @@ with st.container():
 
             tmp_dir = tempfile.gettempdir()
 
-            path1 = os.path.join(tmp_dir, uploaded_files[0].name)
-            path2 = os.path.join(tmp_dir, uploaded_files[1].name)
-
-            with open(path1, "wb") as f:
-                f.write(uploaded_files[0].read())
-
-            with open(path2, "wb") as f:
-                f.write(uploaded_files[1].read())
+            path_tpn = None
+            path_book1 = None
 
             # =========================
-            # DETECT (FIX CỐT LÕI)
+            # SAFE READ FILE
             # =========================
-            if is_tpn(path1):
-                path_tpn = path1
-                path_book1 = path2
-            elif is_tpn(path2):
-                path_tpn = path2
-                path_book1 = path1
-            else:
-                st.error("❌ Không detect được file TPN (không thấy Shipment Nbr)")
-                st.stop()
+            for file in uploaded_files:
+                path = os.path.join(tmp_dir, file.name)
+
+                with open(path, "wb") as f:
+                    f.write(file.read())
+
+                df_check = pd.read_excel(path, nrows=1)
+
+                header = [str(x).strip() for x in df_check.columns]
+
+                if "Shipment Nbr" in header:
+                    path_tpn = path
+                else:
+                    path_book1 = path
 
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # BOOK1 READ SAFE
+            # PROCESS FILE 1
             # =========================
-            df = pd.read_excel(path_book1)
+            df = pd.read_excel(path_book1, usecols=[0])
 
             all_numbers = set()
-            for v in df.astype(str).values.flatten():
-                all_numbers.update(re.findall(r"\d{4}", str(v)))
+            for v in df.iloc[:, 0].dropna().astype(str):
+                all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # TPN PROCESS
-            # =========================
             wb = load_workbook(path_tpn)
             ws = wb.active
 
-            header = [str(c.value).strip() if c.value else "" for c in ws[1]]
+            header = [cell.value for cell in ws[1]]
+            col_index = next((i + 1 for i, v in enumerate(header)
+                              if v and str(v).strip() == "Shipment Nbr"), None)
 
-            col_index = None
-            for i, v in enumerate(header):
-                if "Shipment" in v:
-                    col_index = i + 1
-                    break
-
-            if col_index is None:
-                st.error("❌ Không tìm thấy cột Shipment Nbr")
-                st.stop()
-
-            yellow_fill = PatternFill("solid", fgColor="FFFF00")
+            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
             ketqua_numbers = set()
             count = 0
@@ -193,7 +181,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # BOOK1 OUTPUT
+            # PROCESS FILE 2
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -211,20 +199,31 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
-            # FIX VIEW
-            # =========================
-            def fix_view(p):
-                wbv = load_workbook(p)
-                wbv.active.sheet_view.topLeftCell = "A1"
-                wbv.save(p)
-                wbv.close()
+            # =========================================================
+            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
+            # =========================================================
+            def fix_excel_view(path):
+                wb_fix = load_workbook(path)
+                ws_fix = wb_fix.active
 
-            fix_view(save_path)
-            fix_view(kehoach_path)
+                ws_fix.sheet_view.topLeftCell = "A1"
+
+                ws_fix.sheet_view.selection.clear()
+                ws_fix.sheet_view.selection.append(
+                    type("Selection", (), {
+                        "activeCell": "A1",
+                        "sqref": "A1"
+                    })()
+                )
+
+                wb_fix.save(path)
+                wb_fix.close()
+
+            fix_excel_view(save_path)
+            fix_excel_view(kehoach_path)
 
             # =========================
-            # ZIP
+            # ZIP OUTPUT
             # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
@@ -242,5 +241,7 @@ with st.container():
             data=zip_data,
             file_name="TPN_COMPLETE.zip"
         )
+
+        st.session_state["uploader_key"] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
