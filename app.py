@@ -17,24 +17,18 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 # =========================
 st.markdown("""
 <style>
-header {display: none !important;}
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-
-.block-container {padding-top: 0rem !important;}
-
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-}
+header {display:none;}
+#MainMenu {visibility:hidden;}
+footer {visibility:hidden;}
+.block-container {padding-top:0;}
+.card {background:white;padding:20px;border-radius:12px;}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX FILE (REMOVE STYLE)
+# 🔥 FIX FILE (INPLACE)
 # =========================
-def fix_excel_styles(path):
+def fix_file_inplace(path):
     import re
 
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -48,27 +42,32 @@ def fix_excel_styles(path):
     if os.path.exists(style_path):
         os.remove(style_path)
 
-    # remove style refs
+    # remove style ref
     sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
     if os.path.exists(sheet_dir):
-        for file in os.listdir(sheet_dir):
-            if file.endswith(".xml"):
-                p = os.path.join(sheet_dir, file)
+        for f in os.listdir(sheet_dir):
+            if f.endswith(".xml"):
+                p = os.path.join(sheet_dir, f)
                 content = open(p, encoding="utf-8").read()
                 content = re.sub(r'\s*s="\d+"', '', content)
                 open(p, "w", encoding="utf-8").write(content)
 
-    fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-    shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
-    os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
+    tmp_zip = path.replace(".xlsx", "_tmp.zip")
+    shutil.make_archive(tmp_zip.replace(".zip", ""), 'zip', tmp_dir)
 
-    return fixed_path
+    os.remove(path)
+    os.rename(tmp_zip, path)
 
+# =========================
+# SAFE LOAD
+# =========================
 def safe_load(path):
     try:
         return load_workbook(path, data_only=True)
     except:
-        fixed = fix_excel_styles(path)
+        fixed = path.replace(".xlsx", "_fixed.xlsx")
+        shutil.copy(path, fixed)
+        fix_file_inplace(fixed)
         return load_workbook(fixed, data_only=True)
 
 # =========================
@@ -92,7 +91,7 @@ uploaded_files = st.file_uploader(
 if st.button("🚀 RUN TOOL"):
 
     if not uploaded_files or len(uploaded_files) != 2:
-        st.error("Chọn đúng 2 file")
+        st.error("⚠️ Chọn đúng 2 file")
         st.stop()
 
     tmp = tempfile.gettempdir()
@@ -101,7 +100,7 @@ if st.button("🚀 RUN TOOL"):
     path_book = None
 
     # =========================
-    # SAVE FILES + DETECT
+    # SAVE + DETECT FILE
     # =========================
     for f in uploaded_files:
         path = os.path.join(tmp, f.name)
@@ -109,6 +108,7 @@ if st.button("🚀 RUN TOOL"):
 
         wb = safe_load(path)
         ws = wb.active
+
         header = [str(c.value) if c.value else "" for c in ws[1]]
 
         if any("Shipment Nbr" in h for h in header):
@@ -119,7 +119,7 @@ if st.button("🚀 RUN TOOL"):
         wb.close()
 
     # =========================
-    # 🔥 CLONE FILE GỐC (GIỮ FORMAT)
+    # 🔥 COPY FILE GỐC → OUTPUT
     # =========================
     output_tpn = os.path.join(tmp, "TPN_KET_QUA.xlsx")
     shutil.copy(path_tpn, output_tpn)
@@ -128,7 +128,13 @@ if st.button("🚀 RUN TOOL"):
     shutil.copy(path_book, output_book)
 
     # =========================
-    # READ DATA FROM FIXED FILE
+    # 🔥 FIX FILE COPY (QUAN TRỌNG)
+    # =========================
+    fix_file_inplace(output_tpn)
+    fix_file_inplace(output_book)
+
+    # =========================
+    # READ DATA (FIXED)
     # =========================
     wb_fixed = safe_load(path_tpn)
     ws_fixed = wb_fixed.active
@@ -156,7 +162,7 @@ if st.button("🚀 RUN TOOL"):
     wb_fixed.close()
 
     # =========================
-    # APPLY LÊN FILE COPY (KHÔNG ĐỤNG FILE GỐC)
+    # APPLY LÊN FILE COPY
     # =========================
     wb = load_workbook(output_tpn)
     ws = wb.active
