@@ -10,6 +10,7 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -243,10 +244,14 @@ with st.container():
                 all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
-            # PROCESS FILE 1 (KET QUA)
+            # PROCESS FILE 1
             # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
+
+            # 🔥 OPEN FILE AT TOP
+            ws.sheet_view.topLeftCell = "A1"
+            ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
             col_index = find_shipment_col(ws)
 
@@ -259,9 +264,6 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            # =========================
-            # HEADER STYLE
-            # =========================
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
@@ -270,9 +272,6 @@ with st.container():
                     cell.fill = header_fill
                     cell.font = header_font
 
-            # =========================
-            # 🔥 BOLD ALL CELLS (NEW REQUIREMENT)
-            # =========================
             bold_font = Font(bold=True)
 
             for row in ws.iter_rows():
@@ -280,7 +279,6 @@ with st.container():
                     if cell.value:
                         cell.font = bold_font
 
-            # restore header style (overwrite bold-only effect)
             for cell in ws[1]:
                 if cell.value:
                     cell.fill = header_fill
@@ -301,10 +299,14 @@ with st.container():
             wb.close()
 
             # =========================
-            # PROCESS FILE 2 (KE HOACH)
+            # PROCESS FILE 2
             # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
+
+            # 🔥 OPEN FILE AT TOP
+            ws2.sheet_view.topLeftCell = "A1"
+            ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
             red = Font(color="FF0000")
 
