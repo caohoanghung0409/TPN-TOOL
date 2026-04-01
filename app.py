@@ -4,16 +4,14 @@ import re
 import tempfile
 import os
 import zipfile
-import xml.etree.ElementTree as ET
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
-
 # =========================
-# UI STYLE
+# CSS (SAFE - KHÔNG CRASH)
 # =========================
 st.markdown("""
 <style>
@@ -22,20 +20,26 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
+[data-testid="stFileUploader"] small {
+    display: none !important;
+}
+
 .block-container {
     padding-top: 0rem !important;
 }
 
-.header {
-    text-align: center;
-    padding: 10px 0;
+html, body {
+    background-color: #f1f5f9;
 }
 
+.header {
+    text-align: center;
+    padding: 8px 0;
+}
 .header h1 {
     color: #0284c7;
     margin: 0;
 }
-
 .header p {
     color: #64748b;
     margin: 0;
@@ -73,6 +77,11 @@ section[data-testid="stFileUploader"] {
 </style>
 """, unsafe_allow_html=True)
 
+# =========================
+# STATE
+# =========================
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
 
 # =========================
 # HEADER
@@ -80,64 +89,27 @@ section[data-testid="stFileUploader"] {
 st.markdown("""
 <div class="header">
     <h1>⚡ TPN TOOL</h1>
-    <p>Xử lý Shipment an toàn (anti-crash)</p>
+    <p>Xử lý & đối soát Shipment nhanh chóng</p>
 </div>
 """, unsafe_allow_html=True)
 
-
 # =========================
-# GET HEADER (NO OPENPYXL STYLE PARSE)
-# =========================
-def get_excel_header(path):
-    """
-    Đọc header trực tiếp từ XML -> tránh crash style openpyxl
-    """
-    try:
-        with zipfile.ZipFile(path) as z:
-            with z.open("xl/worksheets/sheet1.xml") as f:
-                tree = ET.parse(f)
-                root = tree.getroot()
-
-                ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-
-                rows = root.findall(".//a:row", ns)
-                if not rows:
-                    return []
-
-                first_row = rows[0]
-                cells = first_row.findall(".//a:c", ns)
-
-                header = []
-                for c in cells:
-                    v = c.find("a:v", ns)
-                    header.append(v.text if v is not None else "")
-
-                return header
-    except:
-        return []
-
-
-# =========================
-# SESSION
-# =========================
-if "uploader_key" not in st.session_state:
-    st.session_state["uploader_key"] = 0
-
-
-# =========================
-# UI
+# CARD UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
-        "📂 Chọn đúng 2 file Excel",
+        "📂 Chọn 2 file Excel cần xử lý",
         type=["xlsx"],
         accept_multiple_files=True,
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    st.markdown('<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
+    )
 
     if st.button("🚀 RUN TOOL"):
 
@@ -153,7 +125,7 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAVE FILES
+            # SAFE READ FILE
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -161,9 +133,9 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                # 🔥 SAFE HEADER DETECT (NO OPENPYXL STYLE CRASH)
-                header = get_excel_header(path)
-                header = [str(x).strip() for x in header]
+                df_check = pd.read_excel(path, nrows=1)
+
+                header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
                     path_tpn = path
@@ -174,7 +146,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1
+            # PROCESS FILE 1
             # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
@@ -182,25 +154,14 @@ with st.container():
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # FILE 2
-            # =========================
             wb = load_workbook(path_tpn)
             ws = wb.active
 
-            header_row = [cell.value for cell in ws[1]]
+            header = [cell.value for cell in ws[1]]
+            col_index = next((i + 1 for i, v in enumerate(header)
+                              if v and str(v).strip() == "Shipment Nbr"), None)
 
-            col_index = next(
-                (i + 1 for i, v in enumerate(header_row)
-                 if v and str(v).strip() == "Shipment Nbr"),
-                None
-            )
-
-            yellow_fill = PatternFill(
-                start_color="FFFF00",
-                end_color="FFFF00",
-                fill_type="solid"
-            )
+            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
             ketqua_numbers = set()
             count = 0
@@ -220,7 +181,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 3
+            # PROCESS FILE 2
             # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
@@ -237,6 +198,29 @@ with st.container():
 
             wb2.save(kehoach_path)
             wb2.close()
+
+            # =========================================================
+            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
+            # =========================================================
+            def fix_excel_view(path):
+                wb_fix = load_workbook(path)
+                ws_fix = wb_fix.active
+
+                ws_fix.sheet_view.topLeftCell = "A1"
+
+                ws_fix.sheet_view.selection.clear()
+                ws_fix.sheet_view.selection.append(
+                    type("Selection", (), {
+                        "activeCell": "A1",
+                        "sqref": "A1"
+                    })()
+                )
+
+                wb_fix.save(path)
+                wb_fix.close()
+
+            fix_excel_view(save_path)
+            fix_excel_view(kehoach_path)
 
             # =========================
             # ZIP OUTPUT
