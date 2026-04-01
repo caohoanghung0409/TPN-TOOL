@@ -260,7 +260,7 @@ with st.container():
             count = 0
 
             # =========================
-            # HEADER STYLE (FIXED)
+            # HEADER STYLE
             # =========================
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
@@ -269,6 +269,22 @@ with st.container():
                 if cell.value:
                     cell.fill = header_fill
                     cell.font = header_font
+
+            # =========================
+            # 🔥 BOLD ALL CELLS (NEW REQUIREMENT)
+            # =========================
+            bold_font = Font(bold=True)
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
+
+            # restore header style (overwrite bold-only effect)
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = Font(color="FFFFFF", bold=True)
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -300,7 +316,6 @@ with st.container():
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
 
-            # AUTO COLUMN WIDTH
             auto_adjust_column_width(ws2)
 
             wb2.save(kehoach_path)
