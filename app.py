@@ -11,24 +11,21 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS (CHỈ FIX 200MB -> TEXT CUSTOM)
+# CSS (SAFE - KHÔNG CRASH)
 # =========================
 st.markdown("""
 <style>
 
-/* ẨN HEADER STREAMLIT */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* ❌ ẨN DÒNG 200MB */
 [data-testid="stFileUploader"] small {
     display: none !important;
 }
 
-/* UI KHÔNG ĐỘNG */
 .block-container {
-    padding-top: 1rem !important;
+    padding-top: 0rem !important;
 }
 
 html, body {
@@ -65,9 +62,9 @@ html, body {
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
+    border-radius: 10px;
     background: #16a34a;
     color: white;
-    border-radius: 10px;
 }
 
 section[data-testid="stFileUploader"] {
@@ -97,7 +94,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# UI CARD
+# CARD UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -109,9 +106,6 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    # =========================
-    # 🔥 THAY THẾ 200MB BẰNG TEXT CỦA BẠN
-    # =========================
     st.markdown(
         '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
         unsafe_allow_html=True
@@ -130,6 +124,9 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
+            # =========================
+            # SAFE READ FILE
+            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
@@ -137,6 +134,7 @@ with st.container():
                     f.write(file.read())
 
                 df_check = pd.read_excel(path, nrows=1)
+
                 header = [str(x).strip() for x in df_check.columns]
 
                 if "Shipment Nbr" in header:
@@ -147,6 +145,9 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+            # =========================
+            # PROCESS FILE 1
+            # =========================
             df = pd.read_excel(path_book1, usecols=[0])
 
             all_numbers = set()
@@ -179,6 +180,9 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
+            # =========================
+            # PROCESS FILE 2
+            # =========================
             wb2 = load_workbook(path_book1)
             ws2 = wb2.active
 
@@ -195,23 +199,32 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
-            # 🔥 FIX A1 (2 FILE)
-            # =========================
-            wb = load_workbook(save_path)
-            ws = wb.active
-            ws.sheet_view.selection[0].activeCell = "A1"
-            ws.sheet_view.selection[0].sqref = "A1"
-            wb.save(save_path)
-            wb.close()
+            # =========================================================
+            # 🔥 FIX 1: FORCE OPEN AT A1 (CẢ 2 FILE)
+            # =========================================================
+            def fix_excel_view(path):
+                wb_fix = load_workbook(path)
+                ws_fix = wb_fix.active
 
-            wb2 = load_workbook(kehoach_path)
-            ws2 = wb2.active
-            ws2.sheet_view.selection[0].activeCell = "A1"
-            ws2.sheet_view.selection[0].sqref = "A1"
-            wb2.save(kehoach_path)
-            wb2.close()
+                ws_fix.sheet_view.topLeftCell = "A1"
 
+                ws_fix.sheet_view.selection.clear()
+                ws_fix.sheet_view.selection.append(
+                    type("Selection", (), {
+                        "activeCell": "A1",
+                        "sqref": "A1"
+                    })()
+                )
+
+                wb_fix.save(path)
+                wb_fix.close()
+
+            fix_excel_view(save_path)
+            fix_excel_view(kehoach_path)
+
+            # =========================
+            # ZIP OUTPUT
+            # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
             with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
