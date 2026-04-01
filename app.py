@@ -131,7 +131,7 @@ with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
-        "📂 Chọn 2 file Excel (TPN + Book1)",
+        "📂 Chọn 2 file Excel cần xử lý",
         type=["xlsx"],
         accept_multiple_files=True,
         key=f"uploader_{st.session_state['uploader_key']}"
