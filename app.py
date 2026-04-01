@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL + ẨN TEXT 200MB
+# CSS FIX FULL + REPLACE TEXT
 # =========================
 st.markdown("""
 <style>
@@ -22,9 +22,21 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* 🔥 ẨN "200MB per file • XLSX" */
+/* 🔥 ẨN TEXT GỐC */
 div[data-testid="stFileUploader"] small {
-    display: none !important;
+    visibility: hidden;
+    position: relative;
+}
+
+/* 🔥 THAY TEXT MỚI NGAY VỊ TRÍ ĐÓ */
+div[data-testid="stFileUploader"] small::after {
+    content: "📌 Chỉ upload file .xlsx";
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 12px;
+    color: #64748b;
 }
 
 /* 🔥 FIX KHOẢNG TRẮNG TRÊN */
@@ -140,9 +152,6 @@ with st.container():
         accept_multiple_files=True,
         key=f"uploader_{st.session_state['uploader_key']}"
     )
-
-    # ✅ TEXT BẠN YÊU CẦU
-    st.caption("📌 Chỉ upload file .xlsx")
 
     if st.button("🚀 RUN TOOL"):
 
