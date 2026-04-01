@@ -259,11 +259,15 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            # HEADER STYLE (NEW)
-            header_font = Font(color="FF000080", bold=True)
+            # =========================
+            # HEADER STYLE (FIXED)
+            # =========================
+            header_fill = PatternFill("solid", fgColor="000080")
+            header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
                 if cell.value:
+                    cell.fill = header_fill
                     cell.font = header_font
 
             for i in range(2, ws.max_row + 1):
@@ -296,7 +300,7 @@ with st.container():
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
 
-            # AUTO COLUMN WIDTH (NEW)
+            # AUTO COLUMN WIDTH
             auto_adjust_column_width(ws2)
 
             wb2.save(kehoach_path)
