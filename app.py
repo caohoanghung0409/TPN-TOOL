@@ -251,7 +251,7 @@ with st.container():
         st.download_button(
             "📥 Download ALL (ZIP)",
             data=zip_data,
-            file_name="TPN_RESULT.zip"
+            file_name="TPN_COMPLETE.zip"
         )
 
         st.session_state["uploader_key"] += 1
