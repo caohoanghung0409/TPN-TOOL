@@ -100,8 +100,11 @@ if st.button("🚀 RUN TOOL"):
                     ws.cell(row=i, column=col_index).fill = yellow_fill
                     count += 1
 
+        # ✅ FIX A1 CHUẨN
         ws.sheet_view.selection[0].activeCell = "A1"
         ws.sheet_view.selection[0].sqref = "A1"
+        ws.sheet_view.topLeftCell = "A1"
+        ws.sheet_view.zoomScale = 100
 
         wb.save(save_path)
         wb.close()
@@ -122,8 +125,11 @@ if st.button("🚀 RUN TOOL"):
                 if nums & ketqua_numbers:
                     ws2.cell(row=i, column=1).font = red_font
 
+        # ✅ FIX A1 CHUẨN
         ws2.sheet_view.selection[0].activeCell = "A1"
         ws2.sheet_view.selection[0].sqref = "A1"
+        ws2.sheet_view.topLeftCell = "A1"
+        ws2.sheet_view.zoomScale = 100
 
         wb2.save(kehoach_path)
         wb2.close()
