@@ -10,113 +10,73 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.views import Selection
+from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# MODERN UI - CSS UPGRADE
+# CSS
 # =========================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-
-html, body {
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, #eef2ff, #f0f9ff, #ecfeff);
-}
-
-/* hide default streamlit UI */
+header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {display: none !important;}
 
-/* center container */
-.block-container {
-    padding-top: 1.2rem !important;
-    max-width: 900px;
-}
-
-/* HEADER */
-.header {
-    text-align: center;
-    margin-bottom: 20px;
-    animation: fadeIn 0.6s ease-in-out;
-}
-
-.header h1 {
-    font-size: 34px;
-    font-weight: 800;
-    background: linear-gradient(90deg, #0ea5e9, #22c55e);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 6px;
-}
-
-.header p {
-    color: #475569;
-    font-size: 14px;
-}
-
-/* CARD */
-.card {
-    background: white;
-    padding: 24px;
-    border-radius: 18px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    border: 1px solid #e2e8f0;
-    animation: fadeInUp 0.5s ease-in-out;
-}
-
-/* buttons */
-.stButton>button {
-    width: 100%;
-    height: 44px;
-    border-radius: 12px;
-    border: none;
-    font-weight: 600;
-    background: linear-gradient(90deg, #0ea5e9, #22c55e);
-    color: white;
-    transition: 0.2s;
-}
-
-.stButton>button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 15px rgba(34,197,94,0.25);
-}
-
-/* download button */
-.stDownloadButton>button {
-    width: 100%;
-    height: 44px;
-    border-radius: 12px;
-    font-weight: 600;
-    background: linear-gradient(90deg, #16a34a, #22c55e);
-    color: white;
-}
-
-/* file uploader */
-section[data-testid="stFileUploader"] {
-    border: 2px dashed #93c5fd;
-    padding: 14px;
-    border-radius: 12px;
-    background: #f8fafc;
-}
-
-/* hide small note */
 [data-testid="stFileUploader"] small {
     display: none !important;
 }
 
-/* animation */
-@keyframes fadeIn {
-    from {opacity: 0;}
-    to {opacity: 1;}
+.block-container {
+    padding-top: 0rem !important;
 }
 
-@keyframes fadeInUp {
-    from {opacity: 0; transform: translateY(10px);}
-    to {opacity: 1; transform: translateY(0);}
+html, body {
+    background-color: #f1f5f9;
+}
+
+.header {
+    text-align: center;
+    padding: 8px 0;
+}
+
+.header h1 {
+    color: #0284c7;
+    margin: 0;
+}
+
+.header p {
+    color: #64748b;
+    margin: 0;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.stButton>button {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #0ea5e9, #22c55e);
+    color: white;
+}
+
+.stDownloadButton>button {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    background: #16a34a;
+    color: white;
+}
+
+section[data-testid="stFileUploader"] {
+    border: 2px dashed #cbd5f5;
+    padding: 12px;
+    border-radius: 10px;
+    background: #f8fafc;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -128,7 +88,7 @@ if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
 # =========================
-# HEADER UI
+# HEADER
 # =========================
 st.markdown("""
 <div class="header">
@@ -178,10 +138,20 @@ def fix_excel_styles(path):
 # =========================
 def safe_load(path, read_only=False):
     try:
-        return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
+        return load_workbook(
+            path,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
     except Exception:
         fixed = fix_excel_styles(path)
-        return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
+        return load_workbook(
+            fixed,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
 
 # =========================
 # FIND COLUMN
@@ -195,7 +165,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO WIDTH
+# AUTO COLUMN WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -209,7 +179,7 @@ def auto_adjust_column_width(ws):
         ws.column_dimensions[col_letter].width = max_len + 3
 
 # =========================
-# UI CARD
+# UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -249,7 +219,8 @@ with st.container():
                 ws_check = wb_check.active
 
                 header = [
-                    str(c.value).replace("\xa0", " ").strip() if c.value else ""
+                    str(c.value).replace("\xa0", " ").strip()
+                    if c.value else ""
                     for c in ws_check[1]
                 ]
 
@@ -264,7 +235,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # FILE 1
+            # READ FILE 2
             # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
@@ -272,9 +243,13 @@ with st.container():
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
+            # =========================
+            # PROCESS FILE 1
+            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
+            # 🔥 OPEN FILE AT TOP
             ws.sheet_view.topLeftCell = "A1"
             ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -289,7 +264,7 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            header_fill = PatternFill("solid", fgColor="0B3D91")
+            header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
@@ -303,6 +278,11 @@ with st.container():
                 for cell in row:
                     if cell.value:
                         cell.font = bold_font
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = Font(color="FFFFFF", bold=True)
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -319,11 +299,12 @@ with st.container():
             wb.close()
 
             # =========================
-            # FILE 2
+            # PROCESS FILE 2
             # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
+            # 🔥 OPEN FILE AT TOP
             ws2.sheet_view.topLeftCell = "A1"
             ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -331,6 +312,7 @@ with st.container():
 
             for i in range(2, ws2.max_row + 1):
                 val = ws2.cell(i, 1).value
+
                 if val:
                     nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
