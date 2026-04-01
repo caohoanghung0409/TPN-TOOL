@@ -234,22 +234,15 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-            # =========================
-            # READ FILE 2
-            # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
                 all_numbers.update(re.findall(r"\d{4}", v))
 
-            # =========================
-            # PROCESS FILE 1
-            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
-            # 🔥 OPEN FILE AT TOP
             ws.sheet_view.topLeftCell = "A1"
             ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -279,16 +272,11 @@ with st.container():
                     if cell.value:
                         cell.font = bold_font
 
-            for cell in ws[1]:
-                if cell.value:
-                    cell.fill = header_fill
-                    cell.font = Font(color="FFFFFF", bold=True)
-
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
 
                 if val:
-                    nums = set(re.findall(r"\d{4}", str(val)))
+                    nums = set(re.findall(r"\d\{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -298,13 +286,9 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
-            # =========================
-            # PROCESS FILE 2
-            # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
-            # 🔥 OPEN FILE AT TOP
             ws2.sheet_view.topLeftCell = "A1"
             ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -323,9 +307,6 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
-            # ZIP
-            # =========================
             zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
@@ -346,3 +327,12 @@ with st.container():
         st.session_state["uploader_key"] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+# =========================
+# FOOTER (ADDED ONLY THIS)
+# =========================
+st.markdown("""
+<div style="text-align:center; padding:18px 0; color:#94a3b8; font-size:12px;">
+© 2026 TPN TOOL • Built with Streamlit • All rights reserved
+</div>
+""", unsafe_allow_html=True)
