@@ -11,63 +11,121 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS
+# CSS (GIỮ NGUYÊN)
 # =========================
 st.markdown("""
 <style>
+
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-.block-container {padding-top: 0rem !important;}
+[data-testid="stFileUploader"] small {
+    display: none !important;
+}
+
+.block-container {
+    padding-top: 0rem !important;
+}
+
+html, body {
+    background-color: #f1f5f9;
+}
+
+.header {
+    text-align: center;
+    padding: 8px 0;
+}
+.header h1 {
+    color: #0284c7;
+    margin: 0;
+}
+.header p {
+    color: #64748b;
+    margin: 0;
+}
 
 .card {
     background: white;
     padding: 20px;
     border-radius: 12px;
 }
+
+.stButton>button {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #0ea5e9, #22c55e);
+    color: white;
+}
+
+.stDownloadButton>button {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    background: #16a34a;
+    color: white;
+}
+
+section[data-testid="stFileUploader"] {
+    border: 2px dashed #cbd5f5;
+    padding: 12px;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# HEADER
+# HEADER (GIỮ NGUYÊN)
 # =========================
 st.markdown("""
-<div style="text-align:center">
-<h2>⚡ TPN TOOL</h2>
-<p>Xử lý Shipment</p>
+<div class="header">
+    <h1>⚡ TPN TOOL</h1>
+    <p>Xử lý & đối soát Shipment nhanh chóng</p>
 </div>
 """, unsafe_allow_html=True)
 
-
 # =========================
-# DETECT FILE TPN
+# SAFE DETECT FILE TPN
 # =========================
-def detect_tpn_file(path):
+def is_tpn_file(path):
     try:
         df = pd.read_excel(path, nrows=5)
-        cols = [str(c).strip() for c in df.columns]
-        return any("Shipment Nbr" in c for c in cols)
+        cols = [str(x).strip() for x in df.columns if x is not None]
+
+        # chỉ cần contains là đủ (không strict nữa)
+        for c in cols:
+            if "Shipment" in c:
+                return True
+        return False
+
     except:
         return False
 
 
 # =========================
-# UI
+# UI CARD
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
-        "📂 Chọn 2 file Excel",
+        "📂 Chọn 2 file Excel cần xử lý",
         type=["xlsx"],
         accept_multiple_files=True
+    )
+
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;margin-top:-8px;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
     )
 
     if st.button("🚀 RUN TOOL"):
 
         if not uploaded_files or len(uploaded_files) != 2:
-            st.error("⚠️ Vui lòng chọn đúng 2 file Excel!")
+            st.error("⚠️ Vui lòng chọn đúng 2 file!")
             st.stop()
 
         with st.spinner("⏳ Đang xử lý..."):
@@ -78,22 +136,32 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAVE + DETECT FILES
+            # SAVE FILES
             # =========================
+            paths = []
+
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                if detect_tpn_file(path):
+                paths.append(path)
+
+            # =========================
+            # DETECT FILE (SAFE)
+            # =========================
+            for path in paths:
+                if is_tpn_file(path):
                     path_tpn = path
                 else:
                     path_book1 = path
 
-            if not path_tpn or not path_book1:
-                st.error("❌ Không nhận diện được file TPN hoặc file dữ liệu!")
-                st.stop()
+            # fallback nếu detect fail
+            if not path_tpn:
+                path_tpn = paths[0]
+            if not path_book1:
+                path_book1 = paths[1]
 
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
@@ -105,7 +173,7 @@ with st.container():
 
             all_numbers = set()
             for v in df.astype(str).values.flatten():
-                all_numbers.update(re.findall(r"\d{4}", v))
+                all_numbers.update(re.findall(r"\d{4}", str(v)))
 
             # =========================
             # PROCESS TPN FILE
@@ -117,15 +185,15 @@ with st.container():
 
             col_index = None
             for i, v in enumerate(header):
-                if "Shipment Nbr" in v:
+                if "Shipment" in v:
                     col_index = i + 1
                     break
 
             if not col_index:
-                st.error("❌ Không tìm thấy cột Shipment Nbr")
+                st.error("❌ Không tìm thấy cột Shipment Nbr trong file TPN")
                 st.stop()
 
-            yellow_fill = PatternFill("solid", fgColor="FFFF00")
+            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
             ketqua_numbers = set()
             count = 0
@@ -164,14 +232,13 @@ with st.container():
             wb2.close()
 
             # =========================
-            # FORCE A1 VIEW
+            # FIX VIEW A1
             # =========================
             def fix_excel_view(path):
                 wb_fix = load_workbook(path)
                 ws_fix = wb_fix.active
 
                 ws_fix.sheet_view.topLeftCell = "A1"
-                ws_fix.sheet_view.selection.clear()
 
                 wb_fix.save(path)
                 wb_fix.close()
@@ -180,7 +247,7 @@ with st.container():
             fix_excel_view(kehoach_path)
 
             # =========================
-            # ZIP OUTPUT
+            # ZIP
             # =========================
             zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
@@ -199,6 +266,6 @@ with st.container():
             file_name="TPN_COMPLETE.zip"
         )
 
-        st.rerun()
+        st.session_state["uploader_key"] = st.session_state.get("uploader_key", 0) + 1
 
     st.markdown('</div>', unsafe_allow_html=True)
