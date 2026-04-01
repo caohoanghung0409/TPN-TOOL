@@ -15,17 +15,13 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS
+# CSS (KHÔNG FOOTER Ở ĐÂY)
 # =========================
 st.markdown("""
 <style>
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-
-[data-testid="stFileUploader"] small {
-    display: none !important;
-}
 
 .block-container {
     padding-top: 0rem !important;
@@ -36,10 +32,9 @@ html, body {
     background-color: #f1f5f9;
 }
 
-/* HEADER */
 .header {
     text-align: center;
-    padding: 8px 0;
+    padding: 10px 0;
 }
 
 .header h1 {
@@ -52,14 +47,13 @@ html, body {
     margin: 0;
 }
 
-/* CARD */
 .card {
     background: white;
     padding: 20px;
     border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
-/* BUTTON */
 .stButton>button {
     width: 100%;
     height: 42px;
@@ -68,7 +62,6 @@ html, body {
     color: white;
 }
 
-/* DOWNLOAD */
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
@@ -77,35 +70,34 @@ html, body {
     color: white;
 }
 
-/* FILE UPLOADER */
 section[data-testid="stFileUploader"] {
     border: 2px dashed #cbd5f5;
     padding: 12px;
     border-radius: 10px;
     background: #f8fafc;
 }
-
-/* =========================
-   FOOTER COPYRIGHT
-   ========================= */
-.footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(10px);
-    text-align: center;
-    padding: 10px 0;
-    font-size: 12px;
-    color: #64748b;
-    border-top: 1px solid #e2e8f0;
-    z-index: 999;
-}
 </style>
+""", unsafe_allow_html=True)
 
-<div class="footer">
-    © 2026 TPN TOOL • Built with Streamlit • All rights reserved
+# =========================
+# FOOTER (ĐẶT NGOÀI CSS - FIX LỖI)
+# =========================
+st.markdown("""
+<div style="
+position: fixed;
+bottom: 0;
+left: 0;
+width: 100%;
+background: rgba(255,255,255,0.92);
+backdrop-filter: blur(8px);
+text-align: center;
+padding: 10px;
+font-size: 12px;
+color: #64748b;
+border-top: 1px solid #e2e8f0;
+z-index: 999;
+">
+© 2026 TPN TOOL • Built with Streamlit • All rights reserved
 </div>
 """, unsafe_allow_html=True)
 
@@ -126,7 +118,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# FIX EXCEL CORRUPT
+# FIX EXCEL
 # =========================
 def fix_excel_styles(path):
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
@@ -155,7 +147,6 @@ def fix_excel_styles(path):
                     f.write(content)
 
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
     os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
 
@@ -166,20 +157,10 @@ def fix_excel_styles(path):
 # =========================
 def safe_load(path, read_only=False):
     try:
-        return load_workbook(
-            path,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
     except Exception:
         fixed = fix_excel_styles(path)
-        return load_workbook(
-            fixed,
-            read_only=read_only,
-            data_only=True,
-            keep_links=False
-        )
+        return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
 
 # =========================
 # FIND COLUMN
@@ -193,7 +174,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO COLUMN WIDTH
+# AUTO WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -277,17 +258,15 @@ with st.container():
                 st.stop()
 
             yellow = PatternFill("solid", fgColor="FFFF00")
-
             ketqua_numbers = set()
             count = 0
 
             header_fill = PatternFill("solid", fgColor="000080")
-            header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
                 if cell.value:
                     cell.fill = header_fill
-                    cell.font = header_font
+                    cell.font = Font(color="FFFFFF", bold=True)
 
             for row in ws.iter_rows():
                 for cell in row:
@@ -320,7 +299,7 @@ with st.container():
                 val = ws2.cell(i, 1).value
 
                 if val:
-                    nums = set(re.findall(r"\d\{4\}", str(val)))
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
 
@@ -349,12 +328,3 @@ with st.container():
         st.session_state["uploader_key"] += 1
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-# =========================
-# FOOTER (IMPORTANT - OUTSIDE CONTAINER)
-# =========================
-st.markdown("""
-<div class="footer">
-    © 2026 TPN TOOL • Built with Streamlit • All rights reserved
-</div>
-""", unsafe_allow_html=True)
