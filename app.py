@@ -7,6 +7,7 @@ import zipfile
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -33,7 +34,7 @@ if st.button("🚀 RUN TOOL"):
         path_book1 = None
 
         # =========================
-        # SAVE FILE + AUTO DETECT
+        # SAVE + DETECT FILE
         # =========================
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
@@ -41,7 +42,6 @@ if st.button("🚀 RUN TOOL"):
             with open(path, "wb") as f:
                 f.write(file.read())
 
-            # detect file
             df_check = pd.read_excel(path, nrows=1)
             header = [str(x).strip() for x in df_check.columns]
 
@@ -51,14 +51,14 @@ if st.button("🚀 RUN TOOL"):
                 path_book1 = path
 
         if not path_tpn or not path_book1:
-            st.error("Không detect được file TPN hoặc Book1!")
+            st.error("Không detect được file!")
             st.stop()
 
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
         # =========================
-        # STEP 1: READ BOOK1
+        # READ BOOK1
         # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
@@ -67,7 +67,7 @@ if st.button("🚀 RUN TOOL"):
             all_numbers.update(re.findall(r"\d{4}", v))
 
         # =========================
-        # STEP 2: PROCESS TPN
+        # PROCESS TPN
         # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
@@ -81,7 +81,7 @@ if st.button("🚀 RUN TOOL"):
                 break
 
         if not col_index:
-            st.error("Không tìm thấy cột Shipment Nbr")
+            st.error("Không tìm thấy Shipment Nbr")
             st.stop()
 
         yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
@@ -100,7 +100,7 @@ if st.button("🚀 RUN TOOL"):
                     ws.cell(row=i, column=col_index).fill = yellow_fill
                     count += 1
 
-        # ✅ FIX A1 CHUẨN
+        # FIX A1
         ws.sheet_view.selection[0].activeCell = "A1"
         ws.sheet_view.selection[0].sqref = "A1"
         ws.sheet_view.topLeftCell = "A1"
@@ -110,7 +110,7 @@ if st.button("🚀 RUN TOOL"):
         wb.close()
 
         # =========================
-        # STEP 3: PROCESS KE_HOACH
+        # PROCESS KE_HOACH
         # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
@@ -125,7 +125,26 @@ if st.button("🚀 RUN TOOL"):
                 if nums & ketqua_numbers:
                     ws2.cell(row=i, column=1).font = red_font
 
-        # ✅ FIX A1 CHUẨN
+        # =========================
+        # AUTO FIT COLUMNS (QUAN TRỌNG)
+        # =========================
+        for col in ws2.columns:
+            max_length = 0
+            col_letter = get_column_letter(col[0].column)
+
+            for cell in col:
+                try:
+                    if cell.value:
+                        length = len(str(cell.value))
+                        if length > max_length:
+                            max_length = length
+                except:
+                    pass
+
+            adjusted_width = min(max_length + 2, 50)
+            ws2.column_dimensions[col_letter].width = adjusted_width
+
+        # FIX A1
         ws2.sheet_view.selection[0].activeCell = "A1"
         ws2.sheet_view.selection[0].sqref = "A1"
         ws2.sheet_view.topLeftCell = "A1"
@@ -135,7 +154,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.close()
 
         # =========================
-        # ZIP 2 FILE
+        # ZIP FILE
         # =========================
         zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
 
@@ -145,9 +164,6 @@ if st.button("🚀 RUN TOOL"):
 
     st.success(f"Xong! Matched: {count}")
 
-    # =========================
-    # DOWNLOAD ZIP
-    # =========================
     with open(zip_path, "rb") as f:
         st.download_button(
             "📥 Download ALL (ZIP)",
