@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import tempfile
 import os
+import zipfile
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
@@ -10,29 +11,48 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 st.title("TPN TOOL ⚡")
-st.write("Upload 2 file để xử lý")
+st.write("Upload 2 file cùng lúc (TPN + Book1)")
 
-file_tpn = st.file_uploader("Upload file TPN (có Shipment Nbr)", type=["xlsx"])
-file_book1 = st.file_uploader("Upload file Book1", type=["xlsx"])
+uploaded_files = st.file_uploader(
+    "Chọn 2 file Excel",
+    type=["xlsx"],
+    accept_multiple_files=True
+)
 
-if st.button("RUN TOOL"):
+if st.button("🚀 RUN TOOL"):
 
-    if not file_tpn or not file_book1:
-        st.error("Thiếu file!")
+    if not uploaded_files or len(uploaded_files) != 2:
+        st.error("Vui lòng chọn đúng 2 file!")
         st.stop()
 
     with st.spinner("Đang xử lý..."):
 
         tmp_dir = tempfile.gettempdir()
 
-        path_tpn = os.path.join(tmp_dir, "tpn.xlsx")
-        path_book1 = os.path.join(tmp_dir, "book1.xlsx")
+        path_tpn = None
+        path_book1 = None
 
-        with open(path_tpn, "wb") as f:
-            f.write(file_tpn.read())
+        # =========================
+        # SAVE FILE + AUTO DETECT
+        # =========================
+        for file in uploaded_files:
+            path = os.path.join(tmp_dir, file.name)
 
-        with open(path_book1, "wb") as f:
-            f.write(file_book1.read())
+            with open(path, "wb") as f:
+                f.write(file.read())
+
+            # detect file
+            df_check = pd.read_excel(path, nrows=1)
+            header = [str(x).strip() for x in df_check.columns]
+
+            if "Shipment Nbr" in header:
+                path_tpn = path
+            else:
+                path_book1 = path
+
+        if not path_tpn or not path_book1:
+            st.error("Không detect được file TPN hoặc Book1!")
+            st.stop()
 
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
@@ -47,12 +67,11 @@ if st.button("RUN TOOL"):
             all_numbers.update(re.findall(r"\d{4}", v))
 
         # =========================
-        # STEP 2: PROCESS TPN (KET_QUA)
+        # STEP 2: PROCESS TPN
         # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
-        # tìm cột Shipment Nbr
         header = [cell.value for cell in ws[1]]
         col_index = None
 
@@ -81,7 +100,6 @@ if st.button("RUN TOOL"):
                     ws.cell(row=i, column=col_index).fill = yellow_fill
                     count += 1
 
-        # FIX A1 (set active cell)
         ws.sheet_view.selection[0].activeCell = "A1"
         ws.sheet_view.selection[0].sqref = "A1"
 
@@ -104,20 +122,29 @@ if st.button("RUN TOOL"):
                 if nums & ketqua_numbers:
                     ws2.cell(row=i, column=1).font = red_font
 
-        # FIX A1
         ws2.sheet_view.selection[0].activeCell = "A1"
         ws2.sheet_view.selection[0].sqref = "A1"
 
         wb2.save(kehoach_path)
         wb2.close()
 
+        # =========================
+        # ZIP 2 FILE
+        # =========================
+        zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
+
+        with zipfile.ZipFile(zip_path, "w") as zipf:
+            zipf.write(save_path, "TPN_KET_QUA.xlsx")
+            zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
+
     st.success(f"Xong! Matched: {count}")
 
     # =========================
-    # DOWNLOAD FILE
+    # DOWNLOAD ZIP
     # =========================
-    with open(save_path, "rb") as f:
-        st.download_button("Download KET_QUA", f, file_name="TPN_KET_QUA.xlsx")
-
-    with open(kehoach_path, "rb") as f:
-        st.download_button("Download KE_HOACH_XE", f, file_name="TPN_KE_HOACH_XE.xlsx")
+    with open(zip_path, "rb") as f:
+        st.download_button(
+            "📥 Download ALL (ZIP)",
+            f,
+            file_name="TPN_RESULT.zip"
+        )
