@@ -4,6 +4,7 @@ import re
 import tempfile
 import os
 import zipfile
+import time
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
@@ -17,16 +18,20 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
-if "downloaded" not in st.session_state:
-    st.session_state["downloaded"] = False
+if "download_clicked" not in st.session_state:
+    st.session_state["download_clicked"] = False
 
 # =========================
-# RESET SAU DOWNLOAD
+# AUTO RESET SAU DOWNLOAD
 # =========================
-if st.session_state["downloaded"]:
+if st.session_state["download_clicked"]:
+    st.success("Đã tải file! Đang reset...")
+
+    time.sleep(1.5)
+
     st.session_state["uploader_key"] += 1
 
-    for k in ["ready", "zip_data", "count", "downloaded"]:
+    for k in ["ready", "zip_data", "count", "download_clicked"]:
         if k in st.session_state:
             del st.session_state[k]
 
@@ -61,7 +66,6 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
-        # SAVE + DETECT
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -83,18 +87,14 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-        # =========================
         # READ BOOK1
-        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
-        # =========================
         # PROCESS TPN
-        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
@@ -129,9 +129,7 @@ if st.button("🚀 RUN TOOL"):
         wb.save(save_path)
         wb.close()
 
-        # =========================
         # PROCESS KE_HOACH
-        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -163,9 +161,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.save(kehoach_path)
         wb2.close()
 
-        # =========================
         # ZIP
-        # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
         with zipfile.ZipFile(zip_buffer.name, "w") as zipf:
@@ -177,7 +173,6 @@ if st.button("🚀 RUN TOOL"):
 
         st.session_state["count"] = count
         st.session_state["ready"] = True
-
 
 # =========================
 # DOWNLOAD
@@ -191,4 +186,4 @@ if st.session_state.get("ready"):
         data=st.session_state["zip_data"],
         file_name="TPN_RESULT.zip"
     ):
-        st.session_state["downloaded"] = True
+        st.session_state["download_clicked"] = True
