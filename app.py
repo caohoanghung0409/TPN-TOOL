@@ -11,51 +11,22 @@ from openpyxl.styles import PatternFill, Font
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# SAFE READ EXCEL (FIX CRASH OPENPYXL STYLE)
+# SAFE HEADER READ ONLY
 # =========================
-def safe_read_excel(path):
+def get_header(path):
     """
-    Fix lỗi: openpyxl Stylesheet fills/theme corrupted
-    KHÔNG dùng load_workbook trong bước detect file nữa
+    Chỉ dùng pandas để detect header (ổn định nhất)
+    KHÔNG dùng XML fallback (gây sai file detect)
     """
-
-    # 1. pandas + openpyxl
     try:
-        return pd.read_excel(path, nrows=1, engine="openpyxl")
+        df = pd.read_excel(path, nrows=1, engine="openpyxl")
+        return [str(x).strip() for x in df.columns]
     except Exception:
-        pass
-
-    # 2. pandas fallback engine
-    try:
-        return pd.read_excel(path, nrows=1)
-    except Exception:
-        pass
-
-    # 3. cực fallback (nếu file quá lỗi)
-    try:
-        import zipfile
-        import xml.etree.ElementTree as ET
-
-        with zipfile.ZipFile(path) as z:
-            xml = z.read("xl/worksheets/sheet1.xml")
-
-        root = ET.fromstring(xml)
-
-        rows = []
-        for row in root.iter():
-            if "row" in row.tag:
-                values = []
-                for c in row:
-                    values.append(c.text)
-                rows.append(values)
-
-        if not rows:
-            return pd.DataFrame()
-
-        return pd.DataFrame(rows).head(1)
-
-    except Exception:
-        return pd.DataFrame()
+        try:
+            df = pd.read_excel(path, nrows=1)
+            return [str(x).strip() for x in df.columns]
+        except Exception:
+            return []
 
 
 # =========================
@@ -141,7 +112,7 @@ st.markdown("""
 
 
 # =========================
-# UI CARD
+# UI
 # =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -172,7 +143,7 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAVE FILES + DETECT TYPE SAFE
+            # SAVE + DETECT FILE SAFE
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -180,21 +151,25 @@ with st.container():
                 with open(path, "wb") as f:
                     f.write(file.read())
 
-                df_check = safe_read_excel(path)
+                header = get_header(path)
 
-                if df_check.empty:
-                    st.error(f"❌ File lỗi không đọc được: {file.name}")
+                if not header:
+                    st.error(f"❌ Không đọc được file: {file.name}")
                     st.stop()
 
-                header = [str(x).strip() for x in df_check.columns]
+                # debug (nếu cần)
+                st.write(f"📄 {file.name} → {header}")
 
                 if "Shipment Nbr" in header:
                     path_tpn = path
                 else:
                     path_book1 = path
 
+            # =========================
+            # CHECK FILES
+            # =========================
             if not path_tpn or not path_book1:
-                st.error("❌ Không xác định được file TPN hoặc file Book1")
+                st.error("❌ Không xác định được file TPN hoặc Book1")
                 st.stop()
 
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
@@ -213,8 +188,12 @@ with st.container():
             ws = wb.active
 
             header = [cell.value for cell in ws[1]]
-            col_index = next((i + 1 for i, v in enumerate(header)
-                              if v and str(v).strip() == "Shipment Nbr"), None)
+
+            col_index = next(
+                (i + 1 for i, v in enumerate(header)
+                 if v and str(v).strip() == "Shipment Nbr"),
+                None
+            )
 
             if not col_index:
                 st.error("❌ Không tìm thấy cột Shipment Nbr")
