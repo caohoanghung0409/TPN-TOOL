@@ -11,13 +11,38 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
+# =========================
+# INIT STATE
+# =========================
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
+
+if "downloaded" not in st.session_state:
+    st.session_state["downloaded"] = False
+
+# =========================
+# RESET SAU DOWNLOAD
+# =========================
+if st.session_state["downloaded"]:
+    st.session_state["uploader_key"] += 1
+
+    for k in ["ready", "zip_data", "count", "downloaded"]:
+        if k in st.session_state:
+            del st.session_state[k]
+
+    st.rerun()
+
+# =========================
+# UI
+# =========================
 st.title("TPN TOOL ⚡")
 st.write("Upload 2 file cùng lúc (TPN + Book1)")
 
 uploaded_files = st.file_uploader(
     "Chọn 2 file Excel",
     type=["xlsx"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key=f"uploader_{st.session_state['uploader_key']}"
 )
 
 # =========================
@@ -139,7 +164,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.close()
 
         # =========================
-        # ZIP FILE (memory)
+        # ZIP
         # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
@@ -148,29 +173,22 @@ if st.button("🚀 RUN TOOL"):
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
         with open(zip_buffer.name, "rb") as f:
-            zip_data = f.read()
+            st.session_state["zip_data"] = f.read()
 
-    st.success(f"Xong! Matched: {count}")
+        st.session_state["count"] = count
+        st.session_state["ready"] = True
 
-    # =========================
-    # DOWNLOAD + AUTO RELOAD
-    # =========================
-    st.download_button(
+
+# =========================
+# DOWNLOAD
+# =========================
+if st.session_state.get("ready"):
+
+    st.success(f"Xong! Matched: {st.session_state['count']}")
+
+    if st.download_button(
         "📥 Download ALL (ZIP)",
-        data=zip_data,
+        data=st.session_state["zip_data"],
         file_name="TPN_RESULT.zip"
-    )
-
-    # 👉 JS reload sau khi click
-    st.markdown("""
-        <script>
-        const btn = window.parent.document.querySelector('button[kind="secondary"]');
-        if (btn) {
-            btn.addEventListener('click', () => {
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            });
-        }
-        </script>
-    """, unsafe_allow_html=True)
+    ):
+        st.session_state["downloaded"] = True
