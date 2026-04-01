@@ -15,7 +15,7 @@ st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 # RESET FUNCTION
 # =========================
 def reset_app():
-    for key in st.session_state.keys():
+    for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
@@ -68,14 +68,18 @@ if st.button("🚀 RUN TOOL"):
         save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
         kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
+        # =========================
         # READ BOOK1
+        # =========================
         df = pd.read_excel(path_book1, usecols=[0])
 
         all_numbers = set()
         for v in df.iloc[:, 0].dropna().astype(str):
             all_numbers.update(re.findall(r"\d{4}", v))
 
+        # =========================
         # PROCESS TPN
+        # =========================
         wb = load_workbook(path_tpn)
         ws = wb.active
 
@@ -110,7 +114,9 @@ if st.button("🚀 RUN TOOL"):
         wb.save(save_path)
         wb.close()
 
+        # =========================
         # PROCESS KE_HOACH
+        # =========================
         wb2 = load_workbook(path_book1)
         ws2 = wb2.active
 
@@ -142,33 +148,35 @@ if st.button("🚀 RUN TOOL"):
         wb2.save(kehoach_path)
         wb2.close()
 
-        # ZIP
+        # =========================
+        # ZIP FILE
+        # =========================
         zip_path = os.path.join(tmp_dir, "TPN_RESULT.zip")
 
         with zipfile.ZipFile(zip_path, "w") as zipf:
             zipf.write(save_path, "TPN_KET_QUA.xlsx")
             zipf.write(kehoach_path, "TPN_KE_HOACH_XE.xlsx")
 
-        # SAVE vào session
-        st.session_state["zip_path"] = zip_path
-        st.session_state["done"] = True
+        # Lưu vào session
+        st.session_state["zip_data"] = open(zip_path, "rb").read()
         st.session_state["count"] = count
+        st.session_state["ready"] = True
 
 
 # =========================
-# SHOW DOWNLOAD
+# DOWNLOAD + AUTO RESET
 # =========================
-if st.session_state.get("done"):
+if st.session_state.get("ready"):
 
     st.success(f"Xong! Matched: {st.session_state['count']}")
 
-    with open(st.session_state["zip_path"], "rb") as f:
-        st.download_button(
-            "📥 Download ALL (ZIP)",
-            f,
-            file_name="TPN_RESULT.zip"
-        )
+    st.download_button(
+        "📥 Download ALL (ZIP)",
+        st.session_state["zip_data"],
+        file_name="TPN_RESULT.zip"
+    )
 
-    # Nút reset
-    if st.button("🔄 Làm mới"):
-        reset_app()
+    # ⏱ Auto reset sau khi hiển thị download
+    import time
+    time.sleep(2)
+    reset_app()
