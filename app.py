@@ -9,6 +9,7 @@ import uuid
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -96,23 +97,19 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# 🔥 FIX EXCEL CORRUPT
+# FIX EXCEL CORRUPT
 # =========================
 def fix_excel_styles(path):
-    import re
-
     tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
     os.makedirs(tmp_dir, exist_ok=True)
 
     with zipfile.ZipFile(path, 'r') as zin:
         zin.extractall(tmp_dir)
 
-    # 1. remove styles.xml
     style_path = os.path.join(tmp_dir, "xl", "styles.xml")
     if os.path.exists(style_path):
         os.remove(style_path)
 
-    # 2. remove style reference trong sheet
     sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
 
     if os.path.exists(sheet_dir):
@@ -128,7 +125,6 @@ def fix_excel_styles(path):
                 with open(fpath, "w", encoding="utf-8") as f:
                     f.write(content)
 
-    # 3. zip lại
     fixed_path = path.replace(".xlsx", "_fixed.xlsx")
 
     shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
@@ -168,6 +164,20 @@ def find_shipment_col(ws):
     return None
 
 # =========================
+# AUTO COLUMN WIDTH
+# =========================
+def auto_adjust_column_width(ws):
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+
+        for cell in col:
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+
+        ws.column_dimensions[col_letter].width = max_len + 3
+
+# =========================
 # UI
 # =========================
 with st.container():
@@ -198,9 +208,6 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
-            # =========================
-            # SAVE + DETECT FILE
-            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
@@ -223,9 +230,6 @@ with st.container():
                 else:
                     path_book1 = path
 
-            # =========================
-            # OUTPUT
-            # =========================
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
@@ -239,7 +243,7 @@ with st.container():
                 all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
-            # PROCESS FILE 1
+            # PROCESS FILE 1 (KET QUA)
             # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
@@ -254,6 +258,13 @@ with st.container():
 
             ketqua_numbers = set()
             count = 0
+
+            # HEADER STYLE (NEW)
+            header_font = Font(color="FF000080", bold=True)
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.font = header_font
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
@@ -270,7 +281,7 @@ with st.container():
             wb.close()
 
             # =========================
-            # PROCESS FILE 2
+            # PROCESS FILE 2 (KE HOACH)
             # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
@@ -284,6 +295,9 @@ with st.container():
                     nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
+
+            # AUTO COLUMN WIDTH (NEW)
+            auto_adjust_column_width(ws2)
 
             wb2.save(kehoach_path)
             wb2.close()
