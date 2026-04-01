@@ -15,27 +15,48 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
 # =========================
-# CSS FIX FULL
+# CSS FIX FULL (QUAN TRỌNG)
 # =========================
 st.markdown("""
 <style>
 
-/* 🔥 XÓA HEADER STREAMLIT */
-header {visibility: hidden;}
-footer {visibility: hidden;}
+/* 🔥 ẨN HEADER STREAMLIT */
+header {display: none !important;}
 #MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
 
-/* 🔥 XÓA khoảng trắng trên cùng */
-.block-container {
+/* 🔥 FIX KHOẢNG TRẮNG TRIỆT ĐỂ */
+[data-testid="stAppViewContainer"] {
+    padding-top: 0rem !important;
+    margin-top: 0rem !important;
+}
+
+[data-testid="stAppViewBlockContainer"] {
+    padding-top: 0rem !important;
+    margin-top: 0rem !important;
+}
+
+section.main {
     padding-top: 0rem !important;
     margin-top: 0rem !important;
 }
 
 section.main > div {
     padding-top: 0rem !important;
+    margin-top: 0rem !important;
 }
 
-/* nền */
+.block-container {
+    padding-top: 0rem !important;
+    margin-top: 0rem !important;
+}
+
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* ===== UI ===== */
 body {
     background-color: #f1f5f9;
 }
@@ -43,7 +64,7 @@ body {
 /* header custom */
 .header {
     text-align: center;
-    padding: 10px 0 15px 0;
+    padding: 5px 0 15px 0;
 }
 
 .header h1 {
@@ -114,7 +135,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# CARD START
+# CARD
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -141,7 +162,7 @@ if st.button("🚀 RUN TOOL"):
         path_tpn = None
         path_book1 = None
 
-        # SAVE + DETECT
+        # SAVE + DETECT FILE
         for file in uploaded_files:
             path = os.path.join(tmp_dir, file.name)
 
@@ -244,7 +265,7 @@ if st.button("🚀 RUN TOOL"):
         wb2.close()
 
         # =========================
-        # ZIP
+        # ZIP FILE
         # =========================
         zip_buffer = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
 
@@ -263,10 +284,7 @@ if st.button("🚀 RUN TOOL"):
         file_name="TPN_RESULT.zip"
     )
 
-    # reset uploader
+    # RESET
     st.session_state["uploader_key"] += 1
 
-# =========================
-# CARD END
-# =========================
 st.markdown('</div>', unsafe_allow_html=True)
