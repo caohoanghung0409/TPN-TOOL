@@ -4,11 +4,25 @@ import re
 import tempfile
 import os
 import zipfile
+import unicodedata
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
+
+# =========================
+# CLEAN TEXT (FIX SHIPMENT NBR BUG)
+# =========================
+def clean_text(x):
+    if x is None:
+        return ""
+    x = str(x)
+    x = unicodedata.normalize("NFKC", x)
+    x = x.replace("\xa0", " ")
+    x = x.replace("\n", " ").replace("\r", " ")
+    x = re.sub(r"\s+", " ", x)
+    return x.strip().lower()
 
 # =========================
 # CSS (SAFE - KHÔNG CRASH)
@@ -125,7 +139,7 @@ with st.container():
             path_book1 = None
 
             # =========================
-            # SAFE READ FILE
+            # SAFE READ FILE (FIX HERE)
             # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
@@ -135,9 +149,9 @@ with st.container():
 
                 df_check = pd.read_excel(path, nrows=1)
 
-                header = [str(x).strip() for x in df_check.columns]
+                header = [clean_text(x) for x in df_check.columns]
 
-                if "Shipment Nbr" in header:
+                if "shipment nbr" in header:
                     path_tpn = path
                 else:
                     path_book1 = path
@@ -158,8 +172,13 @@ with st.container():
             ws = wb.active
 
             header = [cell.value for cell in ws[1]]
-            col_index = next((i + 1 for i, v in enumerate(header)
-                              if v and str(v).strip() == "Shipment Nbr"), None)
+
+            # FIX HERE (robust match)
+            col_index = next(
+                (i + 1 for i, v in enumerate(header)
+                 if clean_text(v) == "shipment nbr"),
+                None
+            )
 
             yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
@@ -207,7 +226,6 @@ with st.container():
                 ws_fix = wb_fix.active
 
                 ws_fix.sheet_view.topLeftCell = "A1"
-
                 ws_fix.sheet_view.selection.clear()
                 ws_fix.sheet_view.selection.append(
                     type("Selection", (), {
