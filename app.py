@@ -347,11 +347,18 @@ with st.container():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-# =========================
-# FOOTER (ONLY ONCE)
-# =========================
 st.markdown("""
-<div class="footer">
-© 2026 TPN TOOL • Built with Streamlit • All rights reserved
-</div>
+<style>
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    background-color: white;
+    padding: 8px;
+    font-size: 12px;
+    color: gray;
+    z-index: 999;
+}
+</style>
 """, unsafe_allow_html=True)
