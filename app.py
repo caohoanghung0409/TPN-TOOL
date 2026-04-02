@@ -10,7 +10,7 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.views import Selection
+from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -98,30 +98,60 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# SAFE LOAD (🔥 FIX LỖI CRASH)
+# FIX EXCEL CORRUPT
+# =========================
+def fix_excel_styles(path):
+    tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    with zipfile.ZipFile(path, 'r') as zin:
+        zin.extractall(tmp_dir)
+
+    style_path = os.path.join(tmp_dir, "xl", "styles.xml")
+    if os.path.exists(style_path):
+        os.remove(style_path)
+
+    sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
+
+    if os.path.exists(sheet_dir):
+        for file in os.listdir(sheet_dir):
+            if file.endswith(".xml"):
+                fpath = os.path.join(sheet_dir, file)
+
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                content = re.sub(r'\s*s="\d+"', '', content)
+
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+    fixed_path = path.replace(".xlsx", "_fixed.xlsx")
+
+    shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
+    os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
+
+    return fixed_path
+
+# =========================
+# SAFE LOAD
 # =========================
 def safe_load(path, read_only=False):
-    return load_workbook(
-        path,
-        read_only=read_only,
-        data_only=True,
-        keep_links=False
-    )
-
-# =========================
-# FIX LOGIC SỐ
-# =========================
-def extract_valid_numbers(text):
-    nums = re.findall(r"\d+", str(text))
-    result = set()
-
-    for num in nums:
-        if len(num) == 3:
-            num = "0" + num
-        if len(num) == 4:
-            result.add(num)
-
-    return result
+    try:
+        return load_workbook(
+            path,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
+    except Exception:
+        fixed = fix_excel_styles(path)
+        return load_workbook(
+            fixed,
+            read_only=read_only,
+            data_only=True,
+            keep_links=False
+        )
 
 # =========================
 # FIND COLUMN
@@ -135,7 +165,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO WIDTH
+# AUTO COLUMN WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -179,9 +209,6 @@ with st.container():
             path_tpn = None
             path_book1 = None
 
-            # =========================
-            # SAVE FILE
-            # =========================
             for file in uploaded_files:
                 path = os.path.join(tmp_dir, file.name)
 
@@ -213,8 +240,8 @@ with st.container():
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
-            for v in df.iloc[:, 0].dropna():
-                all_numbers.update(extract_valid_numbers(v))
+            for v in df.iloc[:, 0].dropna().astype(str):
+                all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
             # PROCESS FILE 1
@@ -222,6 +249,7 @@ with st.container():
             wb = safe_load(path_tpn)
             ws = wb.active
 
+            # 🔥 OPEN FILE AT TOP
             ws.sheet_view.topLeftCell = "A1"
             ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -236,7 +264,6 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            # Header style
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
@@ -252,11 +279,16 @@ with st.container():
                     if cell.value:
                         cell.font = bold_font
 
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = Font(color="FFFFFF", bold=True)
+
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
 
                 if val:
-                    nums = extract_valid_numbers(val)
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -272,6 +304,7 @@ with st.container():
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
+            # 🔥 OPEN FILE AT TOP
             ws2.sheet_view.topLeftCell = "A1"
             ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -281,7 +314,7 @@ with st.container():
                 val = ws2.cell(i, 1).value
 
                 if val:
-                    nums = extract_valid_numbers(val)
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
 
