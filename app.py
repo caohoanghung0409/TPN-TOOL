@@ -8,7 +8,7 @@ import shutil
 import uuid
 
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.views import Selection
 
@@ -228,24 +228,19 @@ with st.container():
             save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-            # =========================
             # READ FILE 2
-            # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
                 nums = re.findall(r"\d+", v)
-
                 for num in nums:
                     if len(num) == 3:
                         num = "0" + num
                     if len(num) == 4:
                         all_numbers.add(num)
 
-            # =========================
             # PROCESS FILE 1
-            # =========================
             wb = safe_load(path_tpn)
             ws = wb.active
 
@@ -258,14 +253,14 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            # HEADER
+            # HEADER STYLE (FULL ROW)
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
             for cell in ws[1]:
-                if cell.value:
-                    cell.fill = header_fill
-                    cell.font = header_font
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
             # BOLD DATA
             bold_font = Font(bold=True)
@@ -297,9 +292,7 @@ with st.container():
             wb.save(save_path)
             wb.close()
 
-            # =========================
             # PROCESS FILE 2
-            # =========================
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
