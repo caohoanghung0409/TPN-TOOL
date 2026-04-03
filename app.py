@@ -10,7 +10,7 @@ import uuid
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.views import Selection
+from openpyxl.worksheet.views import Selection   # 🔥 ADD THIS
 
 st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
 
@@ -165,7 +165,7 @@ def find_shipment_col(ws):
     return None
 
 # =========================
-# AUTO WIDTH
+# AUTO COLUMN WIDTH
 # =========================
 def auto_adjust_column_width(ws):
     for col in ws.columns:
@@ -191,6 +191,11 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
+    st.markdown(
+        '<p style="font-size:12px;color:#64748b;">📌 Chỉ upload file .xlsx</p>',
+        unsafe_allow_html=True
+    )
+
     if st.button("🚀 RUN TOOL"):
 
         if not uploaded_files or len(uploaded_files) != 2:
@@ -200,6 +205,7 @@ with st.container():
         with st.spinner("⏳ Đang xử lý..."):
 
             tmp_dir = tempfile.gettempdir()
+
             path_tpn = None
             path_book1 = None
 
@@ -229,18 +235,13 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # READ FILE 2 (FIX 3→4)
+            # READ FILE 2
             # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
             all_numbers = set()
             for v in df.iloc[:, 0].dropna().astype(str):
-                raw_nums = re.findall(r"\d{3,4}", v)
-
-                for n in raw_nums:
-                    if len(n) == 3:
-                        n = "0" + n
-                    all_numbers.add(n)
+                all_numbers.update(re.findall(r"\d{4}", v))
 
             # =========================
             # PROCESS FILE 1
@@ -248,27 +249,46 @@ with st.container():
             wb = safe_load(path_tpn)
             ws = wb.active
 
+            # 🔥 OPEN FILE AT TOP
             ws.sheet_view.topLeftCell = "A1"
             ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
             col_index = find_shipment_col(ws)
 
+            if not col_index:
+                st.error("❌ Không tìm thấy cột Shipment Nbr")
+                st.stop()
+
             yellow = PatternFill("solid", fgColor="FFFF00")
+
             ketqua_numbers = set()
             count = 0
+
+            header_fill = PatternFill("solid", fgColor="000080")
+            header_font = Font(color="FFFFFF", bold=True)
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = header_font
+
+            bold_font = Font(bold=True)
+
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = Font(color="FFFFFF", bold=True)
 
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
 
                 if val:
-                    raw_nums = re.findall(r"\d{3,4}", str(val))
-                    nums = set()
-
-                    for n in raw_nums:
-                        if len(n) == 3:
-                            n = "0" + n
-                        nums.add(n)
-
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     ketqua_numbers.update(nums)
 
                     if nums & all_numbers:
@@ -284,6 +304,7 @@ with st.container():
             wb2 = safe_load(path_book1)
             ws2 = wb2.active
 
+            # 🔥 OPEN FILE AT TOP
             ws2.sheet_view.topLeftCell = "A1"
             ws2.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
@@ -293,14 +314,7 @@ with st.container():
                 val = ws2.cell(i, 1).value
 
                 if val:
-                    raw_nums = re.findall(r"\d{3,4}", str(val))
-                    nums = set()
-
-                    for n in raw_nums:
-                        if len(n) == 3:
-                            n = "0" + n
-                        nums.add(n)
-
+                    nums = set(re.findall(r"\d{4}", str(val)))
                     if nums & ketqua_numbers:
                         ws2.cell(i, 1).font = red
 
