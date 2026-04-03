@@ -253,7 +253,7 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
-            # HEADER STYLE (FULL ROW)
+            # HEADER STYLE
             header_fill = PatternFill("solid", fgColor="000080")
             header_font = Font(color="FFFFFF", bold=True)
 
@@ -262,9 +262,9 @@ with st.container():
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            # BOLD DATA
+            # BOLD DATA (FIX)
             bold_font = Font(bold=True)
-            for row in ws.iter_rows():
+            for row in ws.iter_rows(min_row=2):  # 🔥 FIX Ở ĐÂY
                 for cell in row:
                     if cell.value:
                         cell.font = bold_font
