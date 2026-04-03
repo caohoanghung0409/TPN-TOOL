@@ -229,7 +229,7 @@ with st.container():
             kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
             # =========================
-            # READ FILE 2 (CHUẨN LOCAL)
+            # READ FILE 2
             # =========================
             df = pd.read_excel(path_book1, usecols=[0], engine="openpyxl")
 
@@ -258,6 +258,23 @@ with st.container():
             ketqua_numbers = set()
             count = 0
 
+            # HEADER
+            header_fill = PatternFill("solid", fgColor="000080")
+            header_font = Font(color="FFFFFF", bold=True)
+
+            for cell in ws[1]:
+                if cell.value:
+                    cell.fill = header_fill
+                    cell.font = header_font
+
+            # BOLD DATA
+            bold_font = Font(bold=True)
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value:
+                        cell.font = bold_font
+
+            # PROCESS
             for i in range(2, ws.max_row + 1):
                 val = ws.cell(i, col_index).value
 
@@ -312,9 +329,7 @@ with st.container():
             wb2.save(kehoach_path)
             wb2.close()
 
-            # =========================
             # ZIP
-            # =========================
             zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
 
             with zipfile.ZipFile(zip_path, "w") as z:
