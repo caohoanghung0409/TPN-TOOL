@@ -15,13 +15,26 @@ from openpyxl.worksheet.views import Selection
 st.set_page_config(page_title="THL TO SM", layout="centered")
 
 # =========================
-# CSS
+# CSS (FIX ẨN BADGE + FOOTER)
 # =========================
 st.markdown("""
 <style>
+/* Ẩn header + menu */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+
+/* Ẩn badge góc phải dưới */
+div[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+/* Backup nhiều trường hợp */
+div[class*="viewerBadge"] {display: none !important;}
+div[class*="badge"] {display: none !important;}
+iframe {display: none !important;}
+
+/* UI */
 .block-container {padding-top: 0rem !important;}
 
 .header {text-align: center; padding: 8px 0;}
@@ -50,7 +63,31 @@ footer {visibility: hidden;}
     background: #16a34a;
     color: white;
 }
+
+/* FOOTER */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 12px;
+    color: #94a3b8;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    z-index: 999;
+}
 </style>
+""", unsafe_allow_html=True)
+
+# =========================
+# FOOTER HTML
+# =========================
+st.markdown("""
+<div class="footer">
+    Copyright © 2022 Mesa. All Rights Reserved
+</div>
 """, unsafe_allow_html=True)
 
 # =========================
@@ -110,10 +147,8 @@ def fix_excel_styles(path):
 def safe_load(path, read_only=False):
     try:
         return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
-
     except zipfile.BadZipFile:
         raise ValueError("INVALID_FILE")
-
     except Exception:
         try:
             fixed = fix_excel_styles(path)
@@ -257,14 +292,12 @@ with st.container():
                             ws.cell(i, col_index).fill = yellow
                             count += 1
 
-                # ✅ FIX MỞ FILE Ở A1
                 ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
                 ws.sheet_view.topLeftCell = "A1"
 
                 wb.save(save_path)
                 wb.close()
 
-                # ===== FILE 2 GIỮ NGUYÊN =====
                 df2 = pd.read_excel(path_book1, header=None, engine="openpyxl", dtype=str)
 
                 workbook = xlsxwriter.Workbook(kehoach_path)
