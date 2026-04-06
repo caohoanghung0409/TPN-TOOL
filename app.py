@@ -12,10 +12,10 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.views import Selection
 
-st.set_page_config(page_title="THL TO SM", layout="centered")
+st.set_page_config(page_title="THL TO SM", layout="wide")
 
 # =========================
-# CSS (FIX ẨN BADGE + FOOTER)
+# CSS (FIX CHUẨN KHÔNG LÀM TRẮNG APP)
 # =========================
 st.markdown("""
 <style>
@@ -24,25 +24,43 @@ header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
-/* Ẩn badge góc phải dưới */
+/* Ẩn badge Streamlit */
 div[data-testid="stDecoration"] {
     display: none !important;
 }
 
-/* Backup nhiều trường hợp */
-div[class*="viewerBadge"] {display: none !important;}
-div[class*="badge"] {display: none !important;}
-iframe {display: none !important;}
+div[class*="viewerBadge"] {
+    display: none !important;
+}
 
-/* UI */
-.block-container {padding-top: 0rem !important;}
+/* layout */
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 60px;
+}
 
-.header {text-align: center; padding: 8px 0;}
-.header h1 {color: #0284c7; margin: 0;}
-.header p {color: #64748b; margin: 0;}
+/* header */
+.header {
+    text-align: center;
+    padding: 8px 0;
+}
+.header h1 {
+    color: #0284c7;
+    margin: 0;
+}
+.header p {
+    color: #64748b;
+    margin: 0;
+}
 
-.card {background: white; padding: 20px; border-radius: 12px;}
+/* card */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+}
 
+/* button */
 .stButton>button {
     width: 100%;
     height: 42px;
@@ -56,6 +74,7 @@ iframe {display: none !important;}
     opacity: 0.6;
 }
 
+/* download button */
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
@@ -73,7 +92,7 @@ iframe {display: none !important;}
     text-align: center;
     padding: 8px 0;
     font-size: 12px;
-    color: #000000;   /* 👈 đổi sang màu đen */
+    color: #000000;   /* màu đen */
     background: white;
     border-top: 1px solid #e2e8f0;
     z-index: 999;
@@ -82,7 +101,7 @@ iframe {display: none !important;}
 """, unsafe_allow_html=True)
 
 # =========================
-# FOOTER HTML
+# FOOTER
 # =========================
 st.markdown("""
 <div class="footer">
@@ -170,7 +189,7 @@ def find_shipment_col(ws):
 
 
 # =========================
-# UI
+# UI HEADER
 # =========================
 st.markdown("""
 <div class="header">
@@ -179,6 +198,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# =========================
+# UI MAIN
+# =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -219,15 +241,10 @@ with st.container():
                     with open(path, "wb") as f:
                         f.write(file.read())
 
-                    try:
-                        wb_check = safe_load(path, read_only=True)
-                        ws_check = wb_check.active
-                        header = [str(c.value).strip() if c.value else "" for c in ws_check[1]]
-                        wb_check.close()
-                    except ValueError:
-                        st.error(f"❌ File '{file.name}' không hợp lệ!")
-                        st.session_state["processing"] = False
-                        st.stop()
+                    wb_check = safe_load(path, read_only=True)
+                    ws_check = wb_check.active
+                    header = [str(c.value).strip() if c.value else "" for c in ws_check[1]]
+                    wb_check.close()
 
                     if any("Shipment Nbr" in h for h in header):
                         path_tpn = path
