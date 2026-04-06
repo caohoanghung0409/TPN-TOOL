@@ -191,7 +191,7 @@ with st.container():
         key=f"uploader_{st.session_state['uploader_key']}"
     )
 
-    if st.button("🚀 RUN TOOL"):
+    if st.button("🚀 Bắt đầu xử lý"):
 
         if not uploaded_files or len(uploaded_files) != 2:
             st.error("⚠️ Vui lòng chọn đúng 2 file!")
