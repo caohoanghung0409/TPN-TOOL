@@ -12,55 +12,24 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.views import Selection
 
-st.set_page_config(page_title="THL TO SM", layout="wide")
+st.set_page_config(page_title="THL TO SM", layout="centered")
 
 # =========================
-# CSS (FIX CHUẨN KHÔNG LÀM TRẮNG APP)
+# CSS
 # =========================
 st.markdown("""
 <style>
-/* Ẩn header + menu */
 header {display: none !important;}
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+.block-container {padding-top: 0rem !important;}
 
-/* Ẩn badge Streamlit */
-div[data-testid="stDecoration"] {
-    display: none !important;
-}
+.header {text-align: center; padding: 8px 0;}
+.header h1 {color: #0284c7; margin: 0;}
+.header p {color: #64748b; margin: 0;}
 
-div[class*="viewerBadge"] {
-    display: none !important;
-}
+.card {background: white; padding: 20px; border-radius: 12px;}
 
-/* layout */
-.block-container {
-    padding-top: 0rem !important;
-    padding-bottom: 60px;
-}
-
-/* header */
-.header {
-    text-align: center;
-    padding: 8px 0;
-}
-.header h1 {
-    color: #0284c7;
-    margin: 0;
-}
-.header p {
-    color: #64748b;
-    margin: 0;
-}
-
-/* card */
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-}
-
-/* button */
 .stButton>button {
     width: 100%;
     height: 42px;
@@ -74,7 +43,6 @@ div[class*="viewerBadge"] {
     opacity: 0.6;
 }
 
-/* download button */
 .stDownloadButton>button {
     width: 100%;
     height: 42px;
@@ -82,31 +50,7 @@ div[class*="viewerBadge"] {
     background: #16a34a;
     color: white;
 }
-
-/* FOOTER */
-.footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    text-align: center;
-    padding: 8px 0;
-    font-size: 12px;
-    color: #000000;   /* màu đen */
-    background: white;
-    border-top: 1px solid #e2e8f0;
-    z-index: 999;
-}
 </style>
-""", unsafe_allow_html=True)
-
-# =========================
-# FOOTER
-# =========================
-st.markdown("""
-<div class="footer">
-    Copyright © by GEORGE CAO. All Rights Reserved
-</div>
 """, unsafe_allow_html=True)
 
 # =========================
@@ -166,8 +110,10 @@ def fix_excel_styles(path):
 def safe_load(path, read_only=False):
     try:
         return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
+
     except zipfile.BadZipFile:
         raise ValueError("INVALID_FILE")
+
     except Exception:
         try:
             fixed = fix_excel_styles(path)
@@ -189,7 +135,7 @@ def find_shipment_col(ws):
 
 
 # =========================
-# UI HEADER
+# UI
 # =========================
 st.markdown("""
 <div class="header">
@@ -198,9 +144,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =========================
-# UI MAIN
-# =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -241,10 +184,15 @@ with st.container():
                     with open(path, "wb") as f:
                         f.write(file.read())
 
-                    wb_check = safe_load(path, read_only=True)
-                    ws_check = wb_check.active
-                    header = [str(c.value).strip() if c.value else "" for c in ws_check[1]]
-                    wb_check.close()
+                    try:
+                        wb_check = safe_load(path, read_only=True)
+                        ws_check = wb_check.active
+                        header = [str(c.value).strip() if c.value else "" for c in ws_check[1]]
+                        wb_check.close()
+                    except ValueError:
+                        st.error(f"❌ File '{file.name}' không hợp lệ!")
+                        st.session_state["processing"] = False
+                        st.stop()
 
                     if any("Shipment Nbr" in h for h in header):
                         path_tpn = path
@@ -309,12 +257,14 @@ with st.container():
                             ws.cell(i, col_index).fill = yellow
                             count += 1
 
+                # ✅ FIX MỞ FILE Ở A1
                 ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
                 ws.sheet_view.topLeftCell = "A1"
 
                 wb.save(save_path)
                 wb.close()
 
+                # ===== FILE 2 GIỮ NGUYÊN =====
                 df2 = pd.read_excel(path_book1, header=None, engine="openpyxl", dtype=str)
 
                 workbook = xlsxwriter.Workbook(kehoach_path)
