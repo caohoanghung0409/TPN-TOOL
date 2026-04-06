@@ -12,7 +12,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.views import Selection
 
-st.set_page_config(page_title="TPN TOOL ⚡", layout="centered")
+st.set_page_config(page_title="THL TO SM", layout="centered")
 
 # =========================
 # CSS
@@ -139,7 +139,7 @@ def find_shipment_col(ws):
 # =========================
 st.markdown("""
 <div class="header">
-    <h1>⚡ TPN TOOL</h1>
+    <h1>⚡ THL TO SM</h1>
     <p>Xử lý & đối soát Shipment nhanh chóng</p>
 </div>
 """, unsafe_allow_html=True)
@@ -330,7 +330,7 @@ with st.container():
             st.download_button(
                 "📥 Download ALL (ZIP)",
                 data=zip_data,
-                file_name="TPN_COMPLETE.zip"
+                file_name="THL TO SM.zip"
             )
 
             st.session_state["uploader_key"] += 1
