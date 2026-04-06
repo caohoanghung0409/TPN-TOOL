@@ -73,7 +73,7 @@ iframe {display: none !important;}
     text-align: center;
     padding: 8px 0;
     font-size: 12px;
-    color: #94a3b8;
+    color: #000000;   /* 👈 đổi sang màu đen */
     background: white;
     border-top: 1px solid #e2e8f0;
     z-index: 999;
@@ -86,7 +86,7 @@ iframe {display: none !important;}
 # =========================
 st.markdown("""
 <div class="footer">
-    Copyright © 2022 Mesa. All Rights Reserved
+    Copyright © by GEORGE CAO. All Rights Reserved
 </div>
 """, unsafe_allow_html=True)
 
