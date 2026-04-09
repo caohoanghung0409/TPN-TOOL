@@ -8,6 +8,7 @@ import shutil
 import uuid
 import xlsxwriter
 import base64
+import colorsys
 
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font
@@ -38,11 +39,6 @@ footer {visibility: hidden;}
     background: linear-gradient(90deg, #0ea5e9, #22c55e);
     color: white;
 }
-
-.stButton>button:disabled {
-    background: #94a3b8 !important;
-    opacity: 0.6;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,15 +48,32 @@ footer {visibility: hidden;}
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
 
-if "processing" not in st.session_state:
-    st.session_state["processing"] = False
-
 if "done" not in st.session_state:
     st.session_state["done"] = False
 
-if "last_file_hash" not in st.session_state:
-    st.session_state["last_file_hash"] = None
+# =========================
+# COLOR (DISTINCT PASTEL)
+# =========================
+PASTEL_STRONG_DISTINCT = [
+    "FFD6D6","FFE0EB","EBD6FF","D6E4FF","D6F5FF","D6FFF5",
+    "D6FFD6","F0FFD6","FFF5D6","FFEBD6","FFDCD6","F5D6FF"
+]
 
+def generate_distinct_colors(n):
+    colors = []
+    base = PASTEL_STRONG_DISTINCT.copy()
+
+    extra_needed = max(0, n - len(base))
+
+    for i in range(extra_needed):
+        h = (i * 0.17) % 1
+        s = 0.25
+        v = 0.95
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        hex_color = '%02X%02X%02X' % (int(r*255), int(g*255), int(b*255))
+        colors.append(hex_color)
+
+    return base + colors
 
 # =========================
 # FIX EXCEL
@@ -96,14 +109,12 @@ def fix_excel_styles(path):
 
     return fixed_path
 
-
 def safe_load(path, read_only=False):
     try:
         return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
     except:
         fixed = fix_excel_styles(path)
         return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
-
 
 def find_shipment_col(ws):
     for cell in ws[1]:
@@ -112,7 +123,6 @@ def find_shipment_col(ws):
             if "Shipment Nbr" in v:
                 return cell.column
     return None
-
 
 # =========================
 # UI
@@ -162,23 +172,43 @@ with st.container():
                     save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
                     kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-                    # ====== xử lý số ======
-                    df = pd.read_excel(path_book1, usecols=[0], dtype=str)
-                    all_numbers = set()
+                    df2 = pd.read_excel(path_book1, header=None, dtype=str)
 
-                    for v in df.iloc[:, 0].dropna():
-                        for num in re.findall(r"\d+", str(v)):
+                    group_list = []
+                    for _, row in df2.iterrows():
+                        nums = set()
+                        text = "" if pd.isna(row.iloc[0]) else str(row.iloc[0])
+
+                        for num in re.findall(r"\d+", text):
                             if len(num) == 3:
                                 num = "0" + num
                             if len(num) == 4:
-                                all_numbers.add(num)
+                                nums.add(num)
+
+                        if nums:
+                            group_list.append(nums)
 
                     wb = safe_load(path_tpn)
                     ws = wb.active
                     col_index = find_shipment_col(ws)
 
-                    # ====== style giống code cũ ======
-                    yellow = PatternFill("solid", fgColor="FFFF00")
+                    ketqua_numbers = set()
+
+                    for i in range(2, ws.max_row + 1):
+                        val = ws.cell(i, col_index).value
+                        if val:
+                            for num in re.findall(r"\d+", str(val)):
+                                if len(num) == 3:
+                                    num = "0" + num
+                                if len(num) == 4:
+                                    ketqua_numbers.add(num)
+
+                    pastel_colors = generate_distinct_colors(len(group_list))
+                    group_colors = {
+                        i: PatternFill("solid", fgColor=pastel_colors[i])
+                        for i in range(len(group_list))
+                    }
+
                     header_fill = PatternFill("solid", fgColor="000080")
                     header_font = Font(color="FFFFFF", bold=True)
                     bold_font = Font(bold=True)
@@ -192,33 +222,30 @@ with st.container():
                             if cell.value:
                                 cell.font = bold_font
 
-                    ketqua_numbers = set()
                     count = 0
 
                     for i in range(2, ws.max_row + 1):
                         val = ws.cell(i, col_index).value
                         if val:
                             nums = set()
+
                             for num in re.findall(r"\d+", str(val)):
                                 if len(num) == 3:
                                     num = "0" + num
                                 if len(num) == 4:
                                     nums.add(num)
 
-                            ketqua_numbers.update(nums)
-
-                            if nums & all_numbers:
-                                ws.cell(i, col_index).fill = yellow
-                                count += 1
+                            for idx, g in enumerate(group_list):
+                                if nums & g:
+                                    ws.cell(i, col_index).fill = group_colors[idx]
+                                    count += 1
+                                    break
 
                     ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
                     ws.sheet_view.topLeftCell = "A1"
 
                     wb.save(save_path)
                     wb.close()
-
-                    # ====== file kế hoạch ======
-                    df2 = pd.read_excel(path_book1, header=None, dtype=str)
 
                     workbook = xlsxwriter.Workbook(kehoach_path)
                     worksheet = workbook.add_worksheet()
@@ -254,12 +281,23 @@ with st.container():
                         except:
                             worksheet.write(r, 0, text)
 
-                    # ===== auto width =====
                     worksheet.set_column(0, 0, col_width + 3)
+
+                    legend = workbook.add_worksheet("LEGEND")
+
+                    legend.write(0, 0, "Group")
+                    legend.write(0, 1, "Numbers")
+
+                    for i, g in enumerate(group_list):
+                        fmt = workbook.add_format({'bg_color': pastel_colors[i]})
+                        legend.write(i+1, 0, f"Group {i+1}", fmt)
+                        legend.write(i+1, 1, ", ".join(sorted(g)))
+
+                    legend.set_column(0, 0, 15)
+                    legend.set_column(1, 1, 50)
 
                     workbook.close()
 
-                    # zip
                     zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
                     with zipfile.ZipFile(zip_path, "w") as z:
                         z.write(save_path, "TPN_KET_QUA.xlsx")
@@ -270,7 +308,6 @@ with st.container():
 
                 st.success(f"✅ COMPLETE !!! Matched: {count}")
 
-                # auto download
                 b64 = base64.b64encode(zip_data).decode()
                 st.components.v1.html(f"""
                     <a id="dl" href="data:application/zip;base64,{b64}" download="THL TO SM.zip"></a>
@@ -279,8 +316,8 @@ with st.container():
 
                 st.session_state["done"] = True
 
-            except:
-                st.error("❌ Có lỗi xảy ra!")
+            except Exception as e:
+                st.error(f"❌ Lỗi: {e}")
 
     if st.session_state["done"]:
         if st.button("🔄 Xử lý file mới"):
