@@ -4,20 +4,19 @@ import re
 import tempfile
 import os
 import zipfile
-import shutil
-import uuid
 import xlsxwriter
 import base64
 import colorsys
 
-from openpyxl import load_workbook
+from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.worksheet.views import Selection
+from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="THL TO SM", layout="centered")
 
 # =========================
-# CSS
+# CSS (GIỮ NGUYÊN)
 # =========================
 st.markdown("""
 <style>
@@ -70,62 +69,29 @@ def generate_distinct_colors(n):
         s = 0.25
         v = 0.95
         r, g, b = colorsys.hsv_to_rgb(h, s, v)
-        hex_color = '%02X%02X%02X' % (int(r*255), int(g*255), int(b*255))
-        colors.append(hex_color)
+        colors.append('%02X%02X%02X' % (int(r*255), int(g*255), int(b*255)))
 
     return base + colors
 
 # =========================
-# FIX EXCEL
+# AUTO COLUMN WIDTH FIX
 # =========================
-def fix_excel_styles(path):
-    tmp_dir = os.path.join(tempfile.gettempdir(), f"fix_{uuid.uuid4().hex}")
-    os.makedirs(tmp_dir, exist_ok=True)
+def auto_adjust_column_width(ws):
+    for col in ws.columns:
+        max_length = 0
+        col_letter = get_column_letter(col[0].column)
 
-    with zipfile.ZipFile(path, 'r') as zin:
-        zin.extractall(tmp_dir)
+        for cell in col:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
 
-    style_path = os.path.join(tmp_dir, "xl", "styles.xml")
-    if os.path.exists(style_path):
-        os.remove(style_path)
-
-    sheet_dir = os.path.join(tmp_dir, "xl", "worksheets")
-
-    if os.path.exists(sheet_dir):
-        for file in os.listdir(sheet_dir):
-            if file.endswith(".xml"):
-                fpath = os.path.join(sheet_dir, file)
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = f.read()
-
-                content = re.sub(r'\s*s="\d+"', '', content)
-
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(content)
-
-    fixed_path = path.replace(".xlsx", "_fixed.xlsx")
-    shutil.make_archive(fixed_path.replace(".xlsx", ""), 'zip', tmp_dir)
-    os.rename(fixed_path.replace(".xlsx", ".zip"), fixed_path)
-
-    return fixed_path
-
-def safe_load(path, read_only=False):
-    try:
-        return load_workbook(path, read_only=read_only, data_only=True, keep_links=False)
-    except:
-        fixed = fix_excel_styles(path)
-        return load_workbook(fixed, read_only=read_only, data_only=True, keep_links=False)
-
-def find_shipment_col(ws):
-    for cell in ws[1]:
-        if cell.value:
-            v = str(cell.value).replace("\xa0", " ").strip()
-            if "Shipment Nbr" in v:
-                return cell.column
-    return None
+        ws.column_dimensions[col_letter].width = max_length + 2
 
 # =========================
-# UI
+# HEADER
 # =========================
 st.markdown("""
 <div class="header">
@@ -134,6 +100,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# =========================
+# UI
+# =========================
 with st.container():
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -147,6 +116,7 @@ with st.container():
     ready = uploaded_files and len(uploaded_files) == 2
 
     if ready and not st.session_state["done"]:
+
         if st.button("🚀 Bắt đầu xử lý"):
 
             try:
@@ -155,16 +125,17 @@ with st.container():
                     tmp_dir = tempfile.gettempdir()
                     path_tpn, path_book1 = None, None
 
+                    # =========================
+                    # SAVE FILES
+                    # =========================
                     for file in uploaded_files:
                         path = os.path.join(tmp_dir, file.name)
                         with open(path, "wb") as f:
                             f.write(file.read())
 
-                        wb = safe_load(path, True)
-                        header = [str(c.value) for c in wb.active[1]]
-                        wb.close()
+                        df_check = pd.read_excel(path, engine="calamine", dtype=str)
 
-                        if any("Shipment Nbr" in str(h) for h in header):
+                        if any("Shipment Nbr" in str(c) for c in df_check.columns):
                             path_tpn = path
                         else:
                             path_book1 = path
@@ -172,7 +143,10 @@ with st.container():
                     save_path = os.path.join(tmp_dir, "TPN_KET_QUA.xlsx")
                     kehoach_path = os.path.join(tmp_dir, "TPN_KE_HOACH_XE.xlsx")
 
-                    df2 = pd.read_excel(path_book1, header=None, dtype=str)
+                    # =========================
+                    # BOOK1
+                    # =========================
+                    df2 = pd.read_excel(path_book1, engine="calamine", header=None, dtype=str)
 
                     group_list = []
                     for _, row in df2.iterrows():
@@ -188,35 +162,60 @@ with st.container():
                         if nums:
                             group_list.append(nums)
 
-                    wb = safe_load(path_tpn)
+                    # =========================
+                    # TPN DATA (CLEAN)
+                    # =========================
+                    df_tpn = pd.read_excel(path_tpn, engine="calamine", dtype=str)
+
+                    wb = Workbook()
                     ws = wb.active
-                    col_index = find_shipment_col(ws)
+
+                    ws.append(list(df_tpn.columns))
+
+                    for _, r in df_tpn.iterrows():
+                        ws.append(list(r.values))
+
+                    # =========================
+                    # FIND COL
+                    # =========================
+                    col_index = None
+                    for idx, c in enumerate(ws[1], start=1):
+                        if "Shipment Nbr" in str(c.value):
+                            col_index = idx
+                            break
 
                     ketqua_numbers = set()
 
+                    # =========================
+                    # LAST 4 DIGITS
+                    # =========================
                     for i in range(2, ws.max_row + 1):
                         val = ws.cell(i, col_index).value
                         if val:
-                            for num in re.findall(r"\d+", str(val)):
-                                if len(num) == 3:
-                                    num = "0" + num
-                                if len(num) == 4:
-                                    ketqua_numbers.add(num)
+                            found = re.findall(r"\d+", str(val))
+                            if found:
+                                last = found[-1]
+                                if len(last) == 3:
+                                    last = "0" + last
+                                if len(last) == 4:
+                                    ketqua_numbers.add(last)
 
-                    pastel_colors = generate_distinct_colors(len(group_list))
-                    group_colors = {
-                        i: PatternFill("solid", fgColor=pastel_colors[i])
-                        for i in range(len(group_list))
-                    }
+                    # =========================
+                    # COLORS
+                    # =========================
+                    colors = generate_distinct_colors(len(group_list))
+                    group_colors = {i: colors[i] for i in range(len(group_list))}
 
                     header_fill = PatternFill("solid", fgColor="000080")
                     header_font = Font(color="FFFFFF", bold=True)
                     bold_font = Font(bold=True)
 
+                    # header style
                     for cell in ws[1]:
                         cell.fill = header_fill
                         cell.font = header_font
 
+                    # bold
                     for row in ws.iter_rows(min_row=2):
                         for cell in row:
                             if cell.value:
@@ -224,31 +223,43 @@ with st.container():
 
                     count = 0
 
+                    # =========================
+                    # MATCH + COLOR
+                    # =========================
                     for i in range(2, ws.max_row + 1):
                         val = ws.cell(i, col_index).value
                         if val:
                             nums = set()
+                            found = re.findall(r"\d+", str(val))
 
-                            for num in re.findall(r"\d+", str(val)):
-                                if len(num) == 3:
-                                    num = "0" + num
-                                if len(num) == 4:
-                                    nums.add(num)
+                            if found:
+                                last = found[-1]
+                                if len(last) == 3:
+                                    last = "0" + last
+                                if len(last) == 4:
+                                    nums.add(last)
 
                             for idx, g in enumerate(group_list):
                                 if nums & g:
-                                    ws.cell(i, col_index).fill = group_colors[idx]
+                                    ws.cell(i, col_index).fill = PatternFill(
+                                        fill_type="solid",
+                                        fgColor=group_colors[idx]
+                                    )
                                     count += 1
                                     break
 
                     ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
-                    ws.sheet_view.topLeftCell = "A1"
+
+                    # =========================
+                    # 🔥 AUTO COLUMN WIDTH FIX HERE
+                    # =========================
+                    auto_adjust_column_width(ws)
 
                     wb.save(save_path)
                     wb.close()
 
                     # =========================
-                    # KE HOACH (ĐÃ BỎ LEGEND)
+                    # KE HOACH FILE
                     # =========================
                     workbook = xlsxwriter.Workbook(kehoach_path)
                     worksheet = workbook.add_worksheet()
@@ -268,7 +279,7 @@ with st.container():
                         for m in re.finditer(r"\d+", text):
                             num = m.group()
                             start, end = m.span()
-                            check = "0"+num if len(num)==3 else num
+                            check = "0"+num if len(num) == 3 else num
 
                             if start > last:
                                 parts += [normal, text[last:start]]
@@ -285,9 +296,11 @@ with st.container():
                             worksheet.write(r, 0, text)
 
                     worksheet.set_column(0, 0, col_width + 3)
-
                     workbook.close()
 
+                    # =========================
+                    # ZIP
+                    # =========================
                     zip_path = os.path.join(tmp_dir, "TPN_COMPLETE.zip")
                     with zipfile.ZipFile(zip_path, "w") as z:
                         z.write(save_path, "TPN_KET_QUA.xlsx")
